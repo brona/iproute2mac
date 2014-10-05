@@ -53,7 +53,7 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
 
 A) Manual installation:
 
-    $ wget https://github.com/brona/iproute2mac/blob/master/src/ip.py
+    $ wget https://github.com/brona/iproute2mac/raw/master/src/ip.py
     $ chmod +x ip.py
     $ mv ip.py /usr/local/bin/ip
 
