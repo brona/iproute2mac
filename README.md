@@ -28,9 +28,9 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * Show one interface `ip link show en0`
   * Shutdown interface `ip link set dev en0 down`
   * Start interface `ip link set dev en0 up`
-  * Set custom MAC address `ip link set dev en0 address 00:12:34:45:78`
-  * Set random MAC address `ip link set en0 address random`
-  * Set factory default MAC address `ip link set en0 address factory`
+  * Set custom MAC address `ip link set dev en0 address 00:12:34:45:78:90`
+  * Set **Random MAC** address `ip link set en0 address random`
+  * Set **Factory default MAC** address `ip link set en0 address factory`
   * Set MTU `ip link set dev en0 mtu 9000`
 * Neighbour module (ARP/NDP)
   * Show all neighbors `ip neigh`
