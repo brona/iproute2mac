@@ -57,9 +57,10 @@ A) Manual installation:
     $ chmod +x ip.py
     $ mv ip.py /usr/local/bin/ip
 
-B) Using homebrew:
+B) Using Homebrew:
 
     # Install Homebrew first - see http://brew.sh
+    $ brew tap brona/iproute2mac
     $ brew install iproute2mac
 
 ## Authors
