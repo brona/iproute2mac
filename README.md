@@ -47,7 +47,7 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * List IPv6 addresses `ip -6 route`
   * Get route for destination `ip route get 8.8.8.8`
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
-  * Remote static route `ip route del 192.168.0.0/16`
+  * Remove static route `ip route del 192.168.0.0/16`
 
 ## Installation
 

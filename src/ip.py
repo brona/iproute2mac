@@ -16,6 +16,9 @@ import re
 import string
 import random
 
+# Version
+VERSION = '1.0.1'
+
 # Utilities
 SUDO = '/usr/bin/sudo'
 IFCONFIG = '/sbin/ifconfig'
@@ -42,10 +45,12 @@ def randomMAC():
 # Help
 def do_help():
   print "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }"
+  print "       ip -V"
   print "where  OBJECT := { link | addr | route | neigh }"
   print "       OPTIONS := { -4 | -6 }"
   print ""
   print "iproute2mac"
+  print "Homepage: https://github.com/brona/iproute2mac"
   print "This is CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems."
   print "Provided functionality is limited and command output is not fully compatible with iproute2."
   print "For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly."
@@ -388,6 +393,10 @@ def main(argv):
   elif argv[0] == '-4':
     af=4
     argv.pop(0)
+
+  if argv[0] == '-V':
+    print "iproute2mac, v" + VERSION
+    exit(0)
 
   # Module selection
   if argv[0] in ['address', 'addr', 'a']:
