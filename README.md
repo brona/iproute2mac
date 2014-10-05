@@ -3,17 +3,17 @@ iproute2mac
 
 CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems - `ip` command.
 
-Provided functionality is limited and command output is not fully compatible with iproute2.
+Provided functionality is limited and command output is not fully compatible with [iproute2](http://www.policyrouting.org/iproute2.doc.html).
 
 Goal of this project is to make basic network configuration/debug tasks on Mac OS X easy for admins who already use Linux systems.
 
 For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `networksetup` directly.
 
-# Supported Mac OS X versions (Tested)
+## Supported Mac OS X versions (Tested)
 
 * Mac OS X Maverics 10.9.5 (Python 2.7.5)
 
-# Supported commands / Example usage
+## Supported commands / Example usage
 
 Goal of this utility is to provide compatible CLI with iproute2, supporting same command shortcuts and user experience.
 
@@ -49,7 +49,7 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Remote static route `ip route del 192.168.0.0/16`
 
-# Installation
+## Installation
 
 A) Manual installation:
 
@@ -62,7 +62,7 @@ B) Using homebrew:
     # Install Homebrew first - see http://brew.sh
     $ brew install iproute2mac
 
-# Authors
+## Authors
 
 * Bronislav Robenek <brona@robenek.me>
 
@@ -71,7 +71,7 @@ Used software/code:
 * [macgen.py](http://www.linux-kvm.com/sites/default/files/macgen.py) - Function for generating random MAC address
 * [SpoofMAC](https://github.com/feross/SpoofMAC) - Code for obtaining factory default MAC address for interface
 
-# License
+## License
 
 * The MIT License (MIT)
 
