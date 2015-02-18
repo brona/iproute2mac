@@ -47,13 +47,14 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * List IPv6 addresses `ip -6 route`
   * Get route for destination `ip route get 8.8.8.8`
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
+  * Add default route `ip route add default nexthop 10.0.0.1`
   * Remove static route `ip route del 192.168.0.0/16`
 
 ## Installation
 
 A) Manual installation:
 
-    $ wget https://github.com/brona/iproute2mac/raw/master/src/ip.py
+    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
     $ chmod +x ip.py
     $ mv ip.py /usr/local/bin/ip
 
@@ -62,6 +63,11 @@ B) Using Homebrew:
     # Install Homebrew first - see http://brew.sh
     $ brew tap brona/iproute2mac
     $ brew install iproute2mac
+
+## Changelog
+
+**v1.0.2**
+* Interface name is concatenated to `ip addr` inet rows
 
 ## Authors
 

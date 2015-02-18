@@ -7,7 +7,7 @@
   Homepage: https://github.com/brona/iproute2mac
 
   The MIT License (MIT)
-  Copyright (c) 2014 Bronislav Robenek <brona@robenek.me>
+  Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
 import sys
@@ -17,7 +17,7 @@ import string
 import random
 
 # Version
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -234,18 +234,23 @@ def do_addr_show(argv,af):
   address_count=0
   output=""
   buff=""
+  ifname=""
   for r in res.split('\n'):
     if re.match('^\w',r):
       if address_count > 0:
         output += buff
       buff=""
+      ifname=re.findall("^([^:]+): .+",r)[0]
       address_count=0
-      buff += r + "\n"
+      buff += r.rstrip() + "\n"
     elif re.match('^\W+inet' + SIX + '.+',r):
       address_count+=1
-      buff += r + "\n"
+      if re.match('^\W+inet .+',r):
+        buff += r.rstrip() + " " + ifname + "\n"
+      else:
+        buff += r.rstrip() + "\n"
     elif re.match('^\W+ether.+',r):
-      buff += r + "\n"
+      buff += r.rstrip() + "\n"
 
   if address_count > 0:
     output += buff
