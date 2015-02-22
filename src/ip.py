@@ -17,7 +17,7 @@ import string
 import random
 
 # Version
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -278,11 +278,11 @@ def do_addr_del(argv,af):
     argv.pop(1)
   addr=argv[0]
   dev=argv[1]
-  inet=""
+  inet="inet"
   if ":" in addr or af==6:
     af=6
-    inet=" inet6"
-  execute_cmd(SUDO + " " + IFCONFIG +" " + dev + inet + " remove " + addr)
+    inet="inet6"
+  execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " " + inet + " " + addr + " remove")
 
 # Link module
 def do_link(argv,af):

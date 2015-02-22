@@ -66,6 +66,9 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.3**
+* Fixed `ifconfig: dev: bad value` in `ip addr del`
+
 **v1.0.2**
 * Interface name is concatenated to `ip addr` inet rows
 
