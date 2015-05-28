@@ -11,7 +11,7 @@ For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `network
 
 ## Supported Mac OS X versions (Tested)
 
-* Mac OS X Maverics 10.9.5 (Python 2.7.5)
+* Mac OS X Maverics 10.10.3 (Python 2.7.6)
 
 ## Supported commands / Example usage
 
@@ -33,9 +33,16 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * Set **Factory default MAC** address `ip link set en0 address factory`
   * Set MTU `ip link set dev en0 mtu 9000`
 * Neighbour module (ARP/NDP)
-  * Show all neighbors `ip neigh`
-  * Show all IPv4 (ARP) neighbors `ip -4 neigh`
-  * Show all IPv6 (NDP) neighbors `ip -6 neigh`
+  * Show all neighbours `ip neigh`
+  * Show all IPv4 (ARP) neighbours `ip -4 neigh`
+  * Show all IPv6 (NDP) neighbours `ip -6 neigh`
+  * Show all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh show dev en0`
+  * IPv6 (NDP) neighbours cannot be currently shown for a specific interface
+  * Flush all neighbours (IPv4 + IPv6) `ip neigh flush`
+  * Flush all IPv4 (ARP) neighbours `ip -4 neigh flush`
+  * Flush all IPv6 (NDP) neighbours `ip -6 neigh flush`
+  * Flush all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh flush dev en0`
+  * IPv6 (NDP) neighbours cannot be currently flushed for a specific interface
 * Address module
   * List all addresses `ip addr`
   * List IPv4 addresses `ip -4 addr`
@@ -66,6 +73,10 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.4**
+* Added `ip neigh flush`
+* Added 'dev' option for `ip neigh show` and `ip neigh flush`
+
 **v1.0.3**
 * Fixed `ifconfig: dev: bad value` in `ip addr del`
 
@@ -75,6 +86,7 @@ B) Using Homebrew:
 ## Authors
 
 * Bronislav Robenek <brona@robenek.me>
+* Vladimir Kincl <vladimir@kincl.me>
 
 Used software/code:
 
@@ -84,4 +96,3 @@ Used software/code:
 ## License
 
 * The MIT License (MIT)
-

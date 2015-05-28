@@ -17,7 +17,7 @@ import string
 import random
 
 # Version
-VERSION = '1.0.3'
+VERSION = '1.0.4'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -73,7 +73,7 @@ def do_help_link():
   print "                [ mtu MTU ]"
 
 def do_help_neigh():
-  print "Usage: ip neighbour { show }" # flush, delete, add
+  print "Usage: ip neighbour { show | flush } [ dev DEV ]" # delete, add
 
 # Route Module
 def do_route(argv,af):
@@ -349,6 +349,12 @@ def do_link_set(argv,af):
 # Neigh module
 def do_neigh(argv,af):
   statuses = {'R': 'REACHABLE', 'S': 'STALE'}  # D = DELAY | F = FAILED
+  idev = None
+  if len(argv) > 1:
+    if len(argv) < 3 and argv[1] != 'dev':
+      do_help_neigh()
+      exit(1)
+    idev = argv[2]
   if (not argv) or (argv[0] in ['show','list','ls','sh']):
     if af != 4:
       res=commands.getoutput(NDP + " -an 2>/dev/null")
@@ -366,7 +372,10 @@ def do_neigh(argv,af):
         else:
           print l3a + ' dev ' + dev + ' lladdr ' + l2a + ' ' + stat
     if af != 6:
-      res=commands.getoutput(ARP + " -anl 2>/dev/null")
+      if idev:
+        res=commands.getoutput(ARP + " -anli " + idev +" 2>/dev/null")
+      else:
+        res=commands.getoutput(ARP + " -anl 2>/dev/null")
       res=res.split('\n')
       res=res[1:]
       for r in res:
@@ -379,6 +388,16 @@ def do_neigh(argv,af):
         else:
           print l3a + ' dev ' + dev + ' lladdr ' + l2a + ' REACHABLE'
   # TODO: flush, delete, add
+  elif argv[0] in ['f', 'fl', 'flush']:
+    if af != 4:
+      # TODO: dev option for ipv6 (ndp command doesn't support it now)
+      execute_cmd(SUDO + " " + NDP + " -c")
+    if af != 6:
+      if idev:
+        execute_cmd(SUDO + " " + ARP + " -a -d -i " + idev)
+      else:
+        execute_cmd(SUDO + " " + ARP + " -a -d")
+
   else:
     do_help_neigh()
     exit(1)
