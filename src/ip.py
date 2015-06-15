@@ -355,7 +355,7 @@ def do_neigh(argv,af):
       do_help_neigh()
       exit(1)
     idev = argv[2]
-  if (not argv) or (argv[0] in ['show','s','list','ls','sh']):
+  if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls']):
     if af != 4:
       res=commands.getoutput(NDP + " -an 2>/dev/null")
       res=res.split('\n')
