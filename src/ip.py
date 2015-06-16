@@ -17,7 +17,7 @@ import string
 import random
 
 # Version
-VERSION = '1.0.4'
+VERSION = '1.0.5'
 
 # Utilities
 SUDO = '/usr/bin/sudo'

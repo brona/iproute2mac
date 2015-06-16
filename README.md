@@ -73,6 +73,9 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.5**
+* Added `s` shortcuts to `show` commands
+
 **v1.0.4**
 * Added `ip neigh flush`
 * Added 'dev' option for `ip neigh show` and `ip neigh flush`
