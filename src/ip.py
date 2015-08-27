@@ -17,7 +17,7 @@ import string
 import random
 
 # Version
-VERSION = '1.0.5'
+VERSION = '1.0.6'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -348,7 +348,7 @@ def do_link_set(argv,af):
 
 # Neigh module
 def do_neigh(argv,af):
-  statuses = {'R': 'REACHABLE', 'S': 'STALE'}  # D = DELAY | F = FAILED
+  statuses = {'R': 'REACHABLE', 'S': 'STALE'}
   idev = None
   if len(argv) > 1:
     if len(argv) < 3 and argv[1] != 'dev':
@@ -366,7 +366,10 @@ def do_neigh(argv,af):
         l2a=ra[1]
         dev=ra[2]
         exp=ra[3]
-        stat=statuses[ra[4]]
+        if ra[4] in statuses:
+          stat=statuses[ra[4]]
+        else:
+          stat='INCOMPLETE'
         if l2a=='(incomplete)' and stat!='REACHABLE':
           print l3a + ' dev ' + dev + ' INCOMPLETE'
         else:

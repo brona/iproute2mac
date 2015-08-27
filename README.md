@@ -73,6 +73,9 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.6**
+* Fixed `ip -6 neigh` failing for N status flag
+
 **v1.0.5**
 * Added `s` shortcuts to `show` commands
 
