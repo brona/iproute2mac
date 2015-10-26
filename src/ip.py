@@ -29,6 +29,10 @@ ARP = '/usr/sbin/arp'
 NETWORKSETUP = '/usr/sbin/networksetup'
 
 # Helper functions
+def perror(*args):
+    sys.stderr.write(*args)
+    sys.stderr.write("\n")
+
 def execute_cmd(cmd):
   print 'Executing: %s' % cmd
   print commands.getoutput(cmd)
@@ -44,36 +48,36 @@ def randomMAC():
 
 # Help
 def do_help():
-  print "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }"
-  print "       ip -V"
-  print "where  OBJECT := { link | addr | route | neigh }"
-  print "       OPTIONS := { -4 | -6 }"
-  print ""
-  print "iproute2mac"
-  print "Homepage: https://github.com/brona/iproute2mac"
-  print "This is CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems."
-  print "Provided functionality is limited and command output is not fully compatible with iproute2."
-  print "For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly."
+  perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
+  perror("       ip -V")
+  perror("where  OBJECT := { link | addr | route | neigh }")
+  perror("       OPTIONS := { -4 | -6 }")
+  perror("")
+  perror("iproute2mac")
+  perror("Homepage: https://github.com/brona/iproute2mac")
+  perror("This is CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems.")
+  perror("Provided functionality is limited and command output is not fully compatible with iproute2.")
+  perror("For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly.")
 
 def do_help_route():
-  print "Usage: ip route list"
-  print "       ip route get ADDRESS"
-  print "       ip route { add | del } ROUTE"
-  print "ROUTE := PREFIX [ nexthop NH ]"
+  perror( "Usage: ip route list")
+  perror( "       ip route get ADDRESS")
+  perror( "       ip route { add | del } ROUTE")
+  perror( "ROUTE := PREFIX [ nexthop NH ]")
 
 def do_help_addr():
-  print "Usage: ip addr show [ dev STRING ]"
-  print "       ip addr { add | del } PREFIX dev STRING"
+  perror( "Usage: ip addr show [ dev STRING ]")
+  perror( "       ip addr { add | del } PREFIX dev STRING")
 
 def do_help_link():
-  print "Usage: ip link show [ DEVICE ]"
-  print "       ip link set dev DEVICE"
-  print "                [ { up | down } ]"
-  print "                [ address { LLADDR | factory | random } ]"
-  print "                [ mtu MTU ]"
+  perror( "Usage: ip link show [ DEVICE ]")
+  perror( "       ip link set dev DEVICE")
+  perror( "                [ { up | down } ]")
+  perror( "                [ address { LLADDR | factory | random } ]")
+  perror( "                [ mtu MTU ]")
 
 def do_help_neigh():
-  print "Usage: ip neighbour { show | flush } [ dev DEV ]" # delete, add
+  perror( "Usage: ip neighbour { show | flush } [ dev DEV ]") # delete, add
 
 # Route Module
 def do_route(argv,af):
