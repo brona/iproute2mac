@@ -111,7 +111,7 @@ def do_route(argv,af):
   if (not argv) or (argv[0] in ['show', 'sh', 's', 'list','lst','ls','l']):
     # show help if there is an extra argument on show
     if len(argv) > 1: return False
-    do_route_list(af)
+    return do_route_list(af)
   elif argv[0] in ['add','a'] and len(argv) >= 4:
     if len(argv)>0:
       argv.pop(0)
