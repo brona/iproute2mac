@@ -51,7 +51,10 @@ def help_msg(help_func):
         specific = eval(help_func)
         if specific:
           if type(specific) == types.FunctionType:
-            return specific()
+            if args and kwargs:  
+              return specific(*args, **kwargs)
+            else:
+              return specific()  
           else:
             raise Exception("Function expected for: " + help_func)
         else:
@@ -223,8 +226,8 @@ def do_route_get(argv,af):
     print route_to + " via " + via + " dev " + dev
   return True  
 
-help_msg('do_help_addr')
 # Addr Module
+@help_msg('do_help_addr')
 def do_addr(argv,af):
   if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls','l']):
     if len(argv)>0:
