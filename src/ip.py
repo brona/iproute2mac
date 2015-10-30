@@ -305,6 +305,8 @@ def do_addr_add(argv,af):
     return False 
   if argv[1]=="dev":
     argv.pop(1)
+  else:  
+    return False    
   try:  
     addr=argv[0]
     dev=argv[1]
@@ -494,7 +496,7 @@ def main(argv):
     argv.pop(0)
     do_neigh(argv,af)
   else:
-      return False
+    return False
   return True
 
 if __name__ == '__main__':
