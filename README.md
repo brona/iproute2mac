@@ -73,6 +73,9 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.9**
+* Fixed versioning
+
 **v1.0.8**
 * Better error handling and error messages (Thanks rgcr)
 
