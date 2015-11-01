@@ -73,6 +73,9 @@ B) Using Homebrew:
 
 ## Changelog
 
+**v1.0.8**
+* Better error handling and error messages (Thanks rgcr)
+
 **v1.0.7**
 * Help messages are sent to stderr (Thanks rgcr)
 
@@ -94,8 +97,7 @@ B) Using Homebrew:
 
 ## Authors
 
-* Bronislav Robenek <brona@robenek.me>
-* Vladimir Kincl <vladimir@kincl.me>
+See AUTHORS.
 
 Used software/code:
 
