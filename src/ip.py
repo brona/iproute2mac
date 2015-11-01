@@ -18,7 +18,7 @@ import random
 import types
 
 # Version
-VERSION = '1.0.7'
+VERSION = '1.0.8'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -41,7 +41,7 @@ def execute_cmd(cmd):
     print output
     return True
   else:
-    perror(output)  
+    perror(output)
     return False
 
 def help_msg(help_func):
@@ -51,18 +51,18 @@ def help_msg(help_func):
         specific = eval(help_func)
         if specific:
           if type(specific) == types.FunctionType:
-            if args and kwargs:  
+            if args and kwargs:
               return specific(*args, **kwargs)
             else:
-              return specific()  
+              return specific()
           else:
             raise Exception("Function expected for: " + help_func)
         else:
           raise Exception("Function variant not defined: " + help_func)
-          return True 
+          return True
     return inner
   return wrapper
-        
+
 # Generate random MAC address with XenSource Inc. OUI
 # http://www.linux-kvm.com/sites/default/files/macgen.py
 def randomMAC():
@@ -124,8 +124,8 @@ def do_route(argv,af):
     argv.pop(0)
     return do_route_get(argv,af)
   else:
-    return False 
-  return True  
+    return False
+  return True
 
 def do_route_list(af):
   if af==6:
@@ -179,7 +179,7 @@ def do_route_list(af):
           print addr + '/' + str(netmask)+ ' dev ' + dev + '  scope link'
         else:
           print addr + '/' + str(netmask) + ' via ' + gw + ' dev ' + dev
-  return True           
+  return True
 
 def do_route_add(argv,af):
   target=argv[0]
@@ -224,7 +224,7 @@ def do_route_get(argv,af):
     print route_to + " dev " + dev
   else:
     print route_to + " via " + via + " dev " + dev
-  return True  
+  return True
 
 # Addr Module
 @help_msg('do_help_addr')
@@ -305,12 +305,12 @@ def do_addr_show(argv,af):
 
 def do_addr_add(argv,af):
   if len(argv) < 2:
-    return False 
+    return False
   if argv[1]=="dev":
     argv.pop(1)
-  else:  
-    return False    
-  try:  
+  else:
+    return False
+  try:
     addr=argv[0]
     dev=argv[1]
   except IndexError:
@@ -324,14 +324,14 @@ def do_addr_add(argv,af):
 
 def do_addr_del(argv,af):
   if len(argv) < 2:
-    return False    
+    return False
   if argv[1]=="dev":
     argv.pop(1)
-  try:  
+  try:
     addr=argv[0]
     dev=argv[1]
   except IndexError:
-    perror('dev not found')    
+    perror('dev not found')
     return False
   inet="inet"
   if ":" in addr or af==6:
@@ -370,16 +370,16 @@ def do_link_show(argv,af):
   for r in res.split('\n'):
     if not re.match('\s+inet.+',r):
       print r
-  return True    
+  return True
 
 def do_link_set(argv,af):
   if not argv:
-    return False    
+    return False
   elif argv[0]=='dev':
     argv.pop(0)
 
   if len(argv) < 2:
-    return False    
+    return False
 
   dev = argv[0]
 
@@ -389,7 +389,7 @@ def do_link_set(argv,af):
       if arg=='up':
         if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " up"): return False
       elif arg=='down':
-        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " down"): return False    
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " down"): return False
       elif arg in ['address','addr','lladdr']:
         addr=args.next()
         if addr in ['random','rand']:
@@ -402,7 +402,7 @@ def do_link_set(argv,af):
         mtu=int(args.next())
         if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " mtu " + str(mtu)): return False
   except:
-    return False    
+    return False
   return True
 
 # Neigh module
