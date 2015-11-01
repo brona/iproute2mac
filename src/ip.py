@@ -18,7 +18,7 @@ import random
 import types
 
 # Version
-VERSION = '1.0.8'
+VERSION = '1.0.9'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
