@@ -15,6 +15,7 @@ import commands
 import re
 import string
 import random
+import types
 
 # Version
 VERSION = '1.0.7'
@@ -35,8 +36,33 @@ def perror(*args):
 
 def execute_cmd(cmd):
   print 'Executing: %s' % cmd
-  print commands.getoutput(cmd)
+  status, output = commands.getstatusoutput(cmd)
+  if not status:  # unix/linux commands 0 true, 1 false
+    print output
+    return True
+  else:
+    perror(output)  
+    return False
 
+def help_msg(help_func):
+  def wrapper(func):
+    def inner(*args, **kwargs):
+      if not func(*args, **kwargs):
+        specific = eval(help_func)
+        if specific:
+          if type(specific) == types.FunctionType:
+            if args and kwargs:  
+              return specific(*args, **kwargs)
+            else:
+              return specific()  
+          else:
+            raise Exception("Function expected for: " + help_func)
+        else:
+          raise Exception("Function variant not defined: " + help_func)
+          return True 
+    return inner
+  return wrapper
+        
 # Generate random MAC address with XenSource Inc. OUI
 # http://www.linux-kvm.com/sites/default/files/macgen.py
 def randomMAC():
@@ -80,29 +106,35 @@ def do_help_neigh():
   perror( "Usage: ip neighbour { show | flush } [ dev DEV ]") # delete, add
 
 # Route Module
+@help_msg('do_help_route')
 def do_route(argv,af):
   if (not argv) or (argv[0] in ['show', 'sh', 's', 'list','lst','ls','l']):
-    do_route_list(af)
+    # show help if there is an extra argument on show
+    if len(argv) > 1: return False
+    return do_route_list(af)
   elif argv[0] in ['add','a'] and len(argv) >= 4:
     if len(argv)>0:
       argv.pop(0)
-    do_route_add(argv,af)
+    return do_route_add(argv,af)
   elif argv[0] in ['delete','del','d'] and len(argv) >= 2:
     if len(argv)>0:
       argv.pop(0)
-    do_route_del(argv,af)
+    return do_route_del(argv,af)
   elif argv[0] in ['get','g'] and len(argv)==2:
     argv.pop(0)
-    do_route_get(argv,af)
+    return do_route_get(argv,af)
   else:
-    do_help_route()
-    exit(1)
+    return False 
+  return True  
 
 def do_route_list(af):
   if af==6:
-    res=commands.getoutput(NETSTAT + " -nr -f inet6 2>/dev/null")
+    status,res = commands.getstatusoutput(NETSTAT + " -nr -f inet6 2>/dev/null")
   else:
-    res=commands.getoutput(NETSTAT + " -nr -f inet 2>/dev/null")
+    status,res = commands.getstatusoutput(NETSTAT + " -nr -f inet 2>/dev/null")
+  if status:
+      perror(res)
+      return False
   res=res.split('\n')
   res=res[4:] # Removes first 4 lines
   for r in res:
@@ -147,6 +179,7 @@ def do_route_list(af):
           print addr + '/' + str(netmask)+ ' dev ' + dev + '  scope link'
         else:
           print addr + '/' + str(netmask) + ' via ' + gw + ' dev ' + dev
+  return True           
 
 def do_route_add(argv,af):
   target=argv[0]
@@ -159,7 +192,7 @@ def do_route_add(argv,af):
   if ":" in target or af==6:
     af=6
     inet="-inet6 "
-  execute_cmd(SUDO + " " + ROUTE + " add " + inet + target + " " + gw)
+  return execute_cmd(SUDO + " " + ROUTE + " add " + inet + target + " " + gw)
 
 def do_route_del(argv,af):
   target=argv[0]
@@ -167,7 +200,7 @@ def do_route_del(argv,af):
   if ":" in target or af==6:
     af=6
     inet="-inet6 "
-  execute_cmd(SUDO + " " + ROUTE + " delete " + inet + target)
+  return execute_cmd(SUDO + " " + ROUTE + " delete " + inet + target)
 
 def do_route_get(argv,af):
   target=argv[0]
@@ -177,7 +210,10 @@ def do_route_get(argv,af):
     af=6
     inet="-inet6 "
 
-  res=commands.getoutput(ROUTE + " -n get " + inet + target)
+  status,res = commands.getstatusoutput(ROUTE + " -n get " + inet + target)
+  if status: # unix status
+    perror(res)
+    return False
   res=dict(re.findall('^\W*((?:route to|destination|gateway|interface)): (.+)$',res, re.MULTILINE))
 
   route_to=res['route to']
@@ -188,24 +224,26 @@ def do_route_get(argv,af):
     print route_to + " dev " + dev
   else:
     print route_to + " via " + via + " dev " + dev
+  return True  
 
 # Addr Module
+@help_msg('do_help_addr')
 def do_addr(argv,af):
   if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls','l']):
     if len(argv)>0:
       argv.pop(0)
-    do_addr_show(argv,af)
+    return do_addr_show(argv,af)
   elif argv[0] in ['add','a'] and len(argv) >= 3:
     if len(argv)>0:
       argv.pop(0)
-    do_addr_add(argv,af)
+    return do_addr_add(argv,af)
   elif argv[0] in ['delete','del','d'] and len(argv) >= 3:
     if len(argv)>0:
       argv.pop(0)
-    do_addr_del(argv,af)
+    return do_addr_del(argv,af)
   else:
-    do_help_addr()
-    exit(1)
+    return False
+  return True
 
 def addr_repl_netmask(matchobj):
   hexmask=matchobj.group(1)
@@ -224,7 +262,11 @@ def do_addr_show(argv,af):
   else:
     param="-a"
 
-  res=commands.getoutput(IFCONFIG + " " + param + " 2>/dev/null")
+  status,res=commands.getstatusoutput(IFCONFIG + " " + param + " 2>/dev/null")
+  if status:
+    if res == "": perror(param + ' not found')
+    else: perror(res)
+    return False
   res=re.sub('(%[^ ]+)? prefixlen ([\d+])','/\\2',res)
   res=re.sub(' netmask 0x([0-9a-fA-F]+)', addr_repl_netmask, res)
   res=re.sub('broadcast', 'brd', res)
@@ -259,48 +301,58 @@ def do_addr_show(argv,af):
   if address_count > 0:
     output += buff
   print output.rstrip()
+  return True
 
 def do_addr_add(argv,af):
   if len(argv) < 2:
-    do_help_addr()
-    exit(1)
+    return False 
   if argv[1]=="dev":
     argv.pop(1)
-  addr=argv[0]
-  dev=argv[1]
+  else:  
+    return False    
+  try:  
+    addr=argv[0]
+    dev=argv[1]
+  except IndexError:
+    perror('dev not found')
+    return False
   inet=""
   if ":" in addr or af==6:
     af=6
     inet=" inet6"
-  execute_cmd(SUDO + " " + IFCONFIG + " " + dev + inet + " add " + addr)
+  return execute_cmd(SUDO + " " + IFCONFIG + " " + dev + inet + " add " + addr)
 
 def do_addr_del(argv,af):
   if len(argv) < 2:
-    do_help_addr()
-    exit(1)
+    return False    
   if argv[1]=="dev":
     argv.pop(1)
-  addr=argv[0]
-  dev=argv[1]
+  try:  
+    addr=argv[0]
+    dev=argv[1]
+  except IndexError:
+    perror('dev not found')    
+    return False
   inet="inet"
   if ":" in addr or af==6:
     af=6
     inet="inet6"
-  execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " " + inet + " " + addr + " remove")
+  return execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " " + inet + " " + addr + " remove")
 
 # Link module
+@help_msg('do_help_link')
 def do_link(argv,af):
   if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls','l']):
     if len(argv)>0:
       argv.pop(0)
-    do_link_show(argv,af)
+    return do_link_show(argv,af)
   elif argv[0] == 'set':
     if len(argv)>0:
       argv.pop(0)
-    do_link_set(argv,af)
+    return do_link_set(argv,af)
   else:
-    do_help_link()
-    exit(1)
+    return False
+  return True
 
 def do_link_show(argv,af):
   if len(argv) > 0 and argv[0]=='dev':
@@ -310,21 +362,24 @@ def do_link_show(argv,af):
   else:
     param="-a"
 
-  res=commands.getoutput(IFCONFIG + " " + param + " 2>/dev/null").split('\n')
-  for r in res:
+  status,res = commands.getstatusoutput(IFCONFIG + " " + param + " 2>/dev/null")
+  if status: # unix status
+    if res == "": perror(param + ' not found')
+    else: perror(res)
+    return False
+  for r in res.split('\n'):
     if not re.match('\s+inet.+',r):
       print r
+  return True    
 
 def do_link_set(argv,af):
   if not argv:
-    do_help_link()
-    exit(1)
+    return False    
   elif argv[0]=='dev':
     argv.pop(0)
 
   if len(argv) < 2:
-    do_help_link()
-    exit(1)
+    return False    
 
   dev = argv[0]
 
@@ -332,9 +387,9 @@ def do_link_set(argv,af):
     args=iter(argv)
     for arg in args:
       if arg=='up':
-        execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " up")
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " up"): return False
       elif arg=='down':
-        execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " down")
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " down"): return False    
       elif arg in ['address','addr','lladdr']:
         addr=args.next()
         if addr in ['random','rand']:
@@ -342,13 +397,13 @@ def do_link_set(argv,af):
         elif addr=='factory':
           details=re.findall('^(?:Device|Ethernet Address): (.+)$',commands.getoutput(NETWORKSETUP + " -listallhardwareports"), re.MULTILINE)
           addr=details[details.index(dev)+1]
-        execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " lladdr " + addr)
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " lladdr " + addr): return False
       elif arg=='mtu':
         mtu=int(args.next())
-        execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " mtu " + str(mtu))
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " mtu " + str(mtu)): return False
   except:
-      do_help_link()
-      exit(1)
+    return False    
+  return True
 
 # Neigh module
 def do_neigh(argv,af):
@@ -410,6 +465,7 @@ def do_neigh(argv,af):
     exit(1)
 
 # Main
+@help_msg('do_help')
 def main(argv):
   argc=len(argv)
   if argc == 0:
@@ -443,8 +499,8 @@ def main(argv):
     argv.pop(0)
     do_neigh(argv,af)
   else:
-    do_help()
-    exit(1)
+    return False
+  return True
 
 if __name__ == '__main__':
   main(sys.argv[1:])
