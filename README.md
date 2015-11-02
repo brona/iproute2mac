@@ -11,7 +11,7 @@ For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `network
 
 ## Supported Mac OS X versions (Tested)
 
-* Mac OS X Maverics 10.10.3 (Python 2.7.6)
+* Mac OS X Maverics 10.10.5 (Python 2.7.10)
 
 ## Supported commands / Example usage
 
@@ -72,6 +72,9 @@ B) Using Homebrew:
     $ brew install iproute2mac
 
 ## Changelog
+
+**v1.1.0**
+* Added source IP address to `ip route get` command
 
 **v1.0.9**
 * Fixed versioning

@@ -16,9 +16,10 @@ import re
 import string
 import random
 import types
+import socket
 
 # Version
-VERSION = '1.0.9'
+VERSION = '1.1.0'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -211,7 +212,7 @@ def do_route_get(argv,af):
     inet="-inet6 "
 
   status,res = commands.getstatusoutput(ROUTE + " -n get " + inet + target)
-  if status: # unix status
+  if status or (res.find('not in table') >= 0): # unix status or not in table
     perror(res)
     return False
   res=dict(re.findall('^\W*((?:route to|destination|gateway|interface)): (.+)$',res, re.MULTILINE))
@@ -220,10 +221,19 @@ def do_route_get(argv,af):
   dev=res['interface']
   via=res.get('gateway',"")
 
+  try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect((route_to, 7))
+    src_ip = s.getsockname()[0]
+    s.close()
+    src = "  src " + src_ip
+  except:
+    src = ""
+
   if via=="":
-    print route_to + " dev " + dev
+    print route_to + " dev " + dev + src
   else:
-    print route_to + " via " + via + " dev " + dev
+    print route_to + " via " + via + " dev " + dev + src
   return True
 
 # Addr Module
