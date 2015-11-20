@@ -59,22 +59,22 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
 
 ## Installation
 
-A) Manual installation:
+A) Using Homebrew:
+
+    # Install Homebrew first - see http://brew.sh
+    $ brew install iproute2mac
+
+B) Manual installation:
 
     $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
     $ chmod +x ip.py
     $ mv ip.py /usr/local/bin/ip
 
-B) Using Homebrew:
-
-    # Install Homebrew first - see http://brew.sh
-    $ brew tap brona/iproute2mac
-    $ brew install iproute2mac
-
 ## Changelog
 
 **v1.1.0**
 * Added source IP address to `ip route get` command
+* Accepted to Homebrew master branch, tap is no longer supported
 
 **v1.0.9**
 * Fixed versioning
