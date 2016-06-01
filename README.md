@@ -72,6 +72,9 @@ B) Manual installation:
 
 ## Changelog
 
+**v1.1.1**
+* Added `dev` option to `ip route add` command
+
 **v1.1.0**
 * Added source IP address to `ip route get` command
 * Accepted to Homebrew master branch, tap is no longer supported
