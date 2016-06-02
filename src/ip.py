@@ -19,7 +19,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -186,13 +186,14 @@ def do_route_add(argv,af):
   target=argv[0]
   via=argv[1]
   gw=argv[2]
-  if via not in ['via','nexthop','gw']:
+  if via not in ['via','nexthop','gw','dev']:
     do_help_route()
     exit(1)
   inet=""
   if ":" in target or af==6:
     af=6
     inet="-inet6 "
+  if "dev"==via: gw = "-interface " + gw
   return execute_cmd(SUDO + " " + ROUTE + " add " + inet + target + " " + gw)
 
 def do_route_del(argv,af):
