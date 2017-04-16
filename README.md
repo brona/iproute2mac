@@ -72,6 +72,9 @@ B) Manual installation:
 
 ## Changelog
 
+**v1.1.2**
+* Correctly show `src'` for `ip route get` on IPv6 addresses
+
 **v1.1.1**
 * Added `dev` option to `ip route add` command
 
