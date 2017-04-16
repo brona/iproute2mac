@@ -19,7 +19,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -211,6 +211,9 @@ def do_route_get(argv,af):
   if ":" in target or af==6:
     af=6
     inet="-inet6 "
+    family=socket.AF_INET6
+  else:
+    family=socket.AF_INET
 
   status,res = commands.getstatusoutput(ROUTE + " -n get " + inet + target)
   if status or (res.find('not in table') >= 0): # unix status or not in table
@@ -223,7 +226,7 @@ def do_route_get(argv,af):
   via=res.get('gateway',"")
 
   try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s = socket.socket(family, socket.SOCK_DGRAM)
     s.connect((route_to, 7))
     src_ip = s.getsockname()[0]
     s.close()
