@@ -72,7 +72,7 @@ B) Manual installation:
 
 **v1.2.1**
 * Fixed error return codes and test script
-* `ip neigh flush` now requires specific device (consistent behaviour as iproute2)
+* `ip neigh flush` now requires specific device (consistent behaviour with iproute2)
 
 **v1.2.0**
 * Enhanced input parsing to support arbitrary length commands (Thanks @deployable)
