@@ -45,6 +45,9 @@ def execute_cmd(cmd):
     perror(output)
     return False
 
+def matches(arg, command):
+  return command.startswith(arg)
+
 def help_msg(help_func):
   def wrapper(func):
     def inner(*args, **kwargs):
@@ -109,19 +112,21 @@ def do_help_neigh():
 # Route Module
 @help_msg('do_help_route')
 def do_route(argv,af):
-  if (not argv) or (argv[0] in ['show', 'sh', 's', 'list','lst','ls','l']):
+  if not argv:
+    return do_route_list(af)
+  elif 'add'.startwith(argv[0]) and len(argv) >= 4:
+    if len(argv) > 0:
+      argv.pop(0)
+    return do_route_add(argv,af)
+  elif 'delete'.startwith(argv[0]) and len(argv) >= 2:
+    if len(argv) > 0:
+      argv.pop(0)
+    return do_route_del(argv,af)
+  elif 'list'.startwith(argv[0]) or 'show'.startwith(argv[0]) or 'lst'.startwith(argv[0]):
     # show help if there is an extra argument on show
     if len(argv) > 1: return False
     return do_route_list(af)
-  elif argv[0] in ['add','a'] and len(argv) >= 4:
-    if len(argv)>0:
-      argv.pop(0)
-    return do_route_add(argv,af)
-  elif argv[0] in ['delete','del','d'] and len(argv) >= 2:
-    if len(argv)>0:
-      argv.pop(0)
-    return do_route_del(argv,af)
-  elif argv[0] in ['get','g'] and len(argv)==2:
+  elif 'get'.startswith(argv[0]) and len(argv) == 2:
     argv.pop(0)
     return do_route_get(argv,af)
   else:
@@ -243,18 +248,20 @@ def do_route_get(argv,af):
 # Addr Module
 @help_msg('do_help_addr')
 def do_addr(argv,af):
-  if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls','l']):
-    if len(argv)>0:
-      argv.pop(0)
+  if not argv:
     return do_addr_show(argv,af)
-  elif argv[0] in ['add','a'] and len(argv) >= 3:
+  elif 'add'.startswith(argv[0]) and len(argv) >= 3:
     if len(argv)>0:
       argv.pop(0)
     return do_addr_add(argv,af)
-  elif argv[0] in ['delete','del','d'] and len(argv) >= 3:
+  elif 'delete'.startswith(argv[0]) and len(argv) >= 3:
     if len(argv)>0:
       argv.pop(0)
     return do_addr_del(argv,af)
+  elif 'list'.startswith(argv[0]) or 'show'.startswith(argv[0]) or 'lst'.startswith(argv[0]):
+    if len(argv)>0:
+      argv.pop(0)
+    return do_addr_show(argv,af)
   else:
     return False
   return True
@@ -276,7 +283,7 @@ def do_addr_show(argv,af):
   else:
     param="-a"
 
-  status,res=commands.getstatusoutput(IFCONFIG + " " + param + " 2>/dev/null")
+  status,res = commands.getstatusoutput(IFCONFIG + " " + param + " 2>/dev/null")
   if status:
     if res == "": perror(param + ' not found')
     else: perror(res)
@@ -478,6 +485,16 @@ def do_neigh(argv,af):
     do_help_neigh()
     exit(1)
 
+# Match iproute2 commands
+# https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
+cmds = [
+  [ "address",    do_addr ],
+  [ "route",      do_route ],
+  [ "neighbor",   do_neigh ],
+  [ "neighbour",  do_neigh ],
+  [ "link",       do_link ],
+]
+
 # Main
 @help_msg('do_help')
 def main(argv):
@@ -499,22 +516,13 @@ def main(argv):
     print "iproute2mac, v" + VERSION
     exit(0)
 
-  # Module selection
-  if argv[0] in ['address', 'addr', 'a']:
-    argv.pop(0)
-    do_addr(argv,af)
-  elif argv[0] in ['route', 'ro', 'r']:
-    argv.pop(0)
-    do_route(argv,af)
-  elif argv[0] in ['link','l']:
-    argv.pop(0)
-    do_link(argv,af)
-  elif argv[0] in ['neighbour', 'neighbor', 'neigh', 'n']:
-    argv.pop(0)
-    do_neigh(argv,af)
-  else:
-    return False
-  return True
+  for cmd, cmd_func in cmds:
+    if cmd.startswith(argv[0]):
+      argv.pop(0)
+      cmd_func(argv, af)
+      return True
+
+  return False
 
 if __name__ == '__main__':
   main(sys.argv[1:])
