@@ -9,9 +9,22 @@ Goal of this project is to make basic network configuration/debug tasks on Mac O
 
 For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `networksetup` directly.
 
-## Supported Mac OS X versions (Tested)
+## Installation
 
-* Mac OS X Sierra 10.12.4 (Python 2.7.10)
+A) Using [Homebrew](http://brew.sh):
+
+    # [Optional] Install Homebrew first - see http://brew.sh for more options
+    $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+    # Install iproute2mac
+    $ brew install iproute2mac
+
+B) Manual installation:
+
+    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
+    $ chmod +x ip.py
+    $ mv ip.py /usr/local/bin/ip
+
 
 ## Supported commands / Example usage
 
@@ -55,18 +68,9 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * Add default route `ip route add default nexthop 10.0.0.1`
   * Remove static route `ip route del 192.168.0.0/16`
 
-## Installation
+## Supported Mac OS X versions (Tested)
 
-A) Using Homebrew:
-
-    # Install Homebrew first - see http://brew.sh
-    $ brew install iproute2mac
-
-B) Manual installation:
-
-    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
-    $ chmod +x ip.py
-    $ mv ip.py /usr/local/bin/ip
+* Mac OS X Sierra 10.12.4 (Python 2.7.10)
 
 ## Changelog
 
