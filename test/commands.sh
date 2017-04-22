@@ -8,9 +8,9 @@ ip_prefix=10.197.92
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
 
-# ## route 
+# ## route
 
-$cmd route help
+! $cmd route help
 
 $cmd route show
 
@@ -24,7 +24,7 @@ $cmd r s
 $cmd route add $ip_dest via $ip_via
 $cmd route delete $ip_dest via $ip_via
 
-$cmd ro add $ip_dest via $ip_via 
+$cmd ro add $ip_dest via $ip_via
 $cmd rou de $ip_dest via $ip_via
 
 
@@ -38,13 +38,12 @@ $cmd a s
 
 $cmd -V
 
-if $cmd adii sh; then
-  exit 1
-fi
+! $cmd adii sh
 
 # ## link
 
 $cmd link help 2>&1| grep 'Usage: ip link show'
+
 $cmd lin hel 2>&1| grep 'Usage: ip link show'
 
 $cmd link show | grep mtu
@@ -57,5 +56,9 @@ $cmd lin lst | grep mtu
 
 $cmd l s | grep mtu
 
+# ## neigh
 
+$cmd nei show
+
+echo "Tests passed!!"
 

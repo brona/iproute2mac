@@ -38,7 +38,7 @@ def perror(*args):
 def execute_cmd(cmd):
   print 'Executing: %s' % cmd
   status, output = commands.getstatusoutput(cmd)
-  if not status:  # unix/linux commands 0 true, 1 false
+  if status == 0:  # unix/linux commands 0 true, 1 false
     print output
     return True
   else:
@@ -60,7 +60,7 @@ def help_msg(help_func):
               specific(*args, **kwargs)
             else:
               specific()
-            exit(255)
+            return False
           else:
             raise Exception("Function expected for: " + help_func)
         else:
@@ -90,16 +90,19 @@ def do_help():
   perror("This is CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems.")
   perror("Provided functionality is limited and command output is not fully compatible with iproute2.")
   perror("For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly.")
+  exit(255)
 
 def do_help_route():
   perror( "Usage: ip route list")
   perror( "       ip route get ADDRESS")
   perror( "       ip route { add | del } ROUTE")
   perror( "ROUTE := PREFIX [ nexthop NH ]")
+  exit(255)
 
 def do_help_addr():
   perror( "Usage: ip addr show [ dev STRING ]")
   perror( "       ip addr { add | del } PREFIX dev STRING")
+  exit(255)
 
 def do_help_link():
   perror( "Usage: ip link show [ DEVICE ]")
@@ -107,9 +110,11 @@ def do_help_link():
   perror( "                [ { up | down } ]")
   perror( "                [ address { LLADDR | factory | random } ]")
   perror( "                [ mtu MTU ]")
+  exit(255)
 
 def do_help_neigh():
   perror( "Usage: ip neighbour { show | flush } [ dev DEV ]") # delete, add
+  exit(255)
 
 # Route Module
 @help_msg('do_help_route')
@@ -222,9 +227,13 @@ def do_route_get(argv,af):
     family=socket.AF_INET
 
   status,res = commands.getstatusoutput(ROUTE + " -n get " + inet + target)
-  if status or (res.find('not in table') >= 0): # unix status or not in table
+  if status: # unix status or not in table
     perror(res)
     return False
+  if res.find('not in table') >= 0:
+      perror(res)
+      exit(1)
+
   res=dict(re.findall('^\W*((?:route to|destination|gateway|interface)): (.+)$',res, re.MULTILINE))
 
   route_to=res['route to']
@@ -337,6 +346,7 @@ def do_addr_add(argv,af):
     dev=argv[1]
   except IndexError:
     perror('dev not found')
+    exit(1)
     return False
   inet=""
   if ":" in addr or af==6:
@@ -354,6 +364,7 @@ def do_addr_del(argv,af):
     dev=argv[1]
   except IndexError:
     perror('dev not found')
+    exit(1)
     return False
   inet="inet"
   if ":" in addr or af==6:
@@ -419,7 +430,10 @@ def do_link_set(argv,af):
         if addr in ['random','rand']:
           addr=randomMAC()
         elif addr=='factory':
-          details=re.findall('^(?:Device|Ethernet Address): (.+)$',commands.getoutput(NETWORKSETUP + " -listallhardwareports"), re.MULTILINE)
+          (status,res)=commands.getstatusoutput(NETWORKSETUP + " -listallhardwareports")
+          if status != 0:
+            return False
+          details=re.findall('^(?:Device|Ethernet Address): (.+)$', res, re.MULTILINE)
           addr=details[details.index(dev)+1]
         if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " lladdr " + addr): return False
       elif arg=='mtu':
@@ -439,7 +453,9 @@ def do_neigh(argv,af):
     idev = argv[2]
   if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls']):
     if af != 4:
-      res=commands.getoutput(NDP + " -an 2>/dev/null")
+      (status,res) = commands.getstatusoutput(NDP + " -an 2>/dev/null")
+      if status != 0:
+        return False
       res=res.split('\n')
       res=res[1:]
       for r in res:
@@ -458,9 +474,11 @@ def do_neigh(argv,af):
           print l3a + ' dev ' + dev + ' lladdr ' + l2a + ' ' + stat
     if af != 6:
       if idev:
-        res=commands.getoutput(ARP + " -anli " + idev +" 2>/dev/null")
+        (status,res)=commands.getstatusoutput(ARP + " -anli " + idev +" 2>/dev/null")
       else:
-        res=commands.getoutput(ARP + " -anl 2>/dev/null")
+        (status,res)=commands.getstatusoutput(ARP + " -anl 2>/dev/null")
+      if status != 0:
+        return False
       res=res.split('\n')
       res=res[1:]
       for r in res:
@@ -472,19 +490,20 @@ def do_neigh(argv,af):
           print l3a + ' dev ' + dev + ' INCOMPLETE'
         else:
           print l3a + ' dev ' + dev + ' lladdr ' + l2a + ' REACHABLE'
-  # TODO: flush, delete, add
+  # TODO: delete, add
   elif argv[0] in ['f', 'fl', 'flush']:
+    if not idev:
+        perror('Flush requires arguments.')
+        exit(1)
     if af != 4:
       # TODO: dev option for ipv6 (ndp command doesn't support it now)
-      execute_cmd(SUDO + " " + NDP + " -c")
+      if not execute_cmd(SUDO + " " + NDP + " -c"): return False
     if af != 6:
-      if idev:
-        execute_cmd(SUDO + " " + ARP + " -a -d -i " + idev)
-      else:
-        execute_cmd(SUDO + " " + ARP + " -a -d")
-
+      if not execute_cmd(SUDO + " " + ARP + " -a -d -i " + idev): return False
   else:
     do_help_neigh()
+
+  return True
 
 # Match iproute2 commands
 # https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
@@ -523,7 +542,8 @@ def main(argv):
       # Functions return true or terminate with exit(255) see help_msg and do_help*
       return cmd_func(argv, af)
 
-  return False
+  perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
+  exit(1)
 
 if __name__ == '__main__':
   main(sys.argv[1:])
