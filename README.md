@@ -15,7 +15,7 @@ For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `network
 
 ## Supported commands / Example usage
 
-Goal of this utility is to provide compatible CLI with iproute2, supporting same command shortcuts and user experience.
+Goal of this utility is to provide compatible CLI with [iproute2](http://www.policyrouting.org/iproute2.doc.html), supporting same command shortcuts and user experience.
 
 * Help
   * `ip help`
@@ -38,11 +38,9 @@ Goal of this utility is to provide compatible CLI with iproute2, supporting same
   * Show all IPv6 (NDP) neighbours `ip -6 neigh`
   * Show all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh show dev en0`
   * IPv6 (NDP) neighbours cannot be currently shown for a specific interface
-  * Flush all neighbours (IPv4 + IPv6) `ip neigh flush`
-  * Flush all IPv4 (ARP) neighbours `ip -4 neigh flush`
-  * Flush all IPv6 (NDP) neighbours `ip -6 neigh flush`
+  * Flush all neighbours (IPv4 + IPv6) for a specific interface `ip neigh flush dev en0`
   * Flush all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh flush dev en0`
-  * IPv6 (NDP) neighbours cannot be currently flushed for a specific interface
+  * IPv6 (NDP) neighbours are currently flushed for all interfaces
 * Address module
   * List all addresses `ip addr`
   * List IPv4 addresses `ip -4 addr`
@@ -71,6 +69,9 @@ B) Manual installation:
     $ mv ip.py /usr/local/bin/ip
 
 ## Changelog
+
+**v1.2.1**
+* Fixed error return codes and test script
 
 **v1.2.0**
 * Enhanced input parsing to support arbitrary length commands (Thanks @deployable)
