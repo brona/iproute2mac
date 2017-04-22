@@ -114,15 +114,15 @@ def do_help_neigh():
 def do_route(argv,af):
   if not argv:
     return do_route_list(af)
-  elif 'add'.startwith(argv[0]) and len(argv) >= 4:
+  elif 'add'.startswith(argv[0]) and len(argv) >= 4:
     if len(argv) > 0:
       argv.pop(0)
     return do_route_add(argv,af)
-  elif 'delete'.startwith(argv[0]) and len(argv) >= 2:
+  elif 'delete'.startswith(argv[0]) and len(argv) >= 2:
     if len(argv) > 0:
       argv.pop(0)
     return do_route_del(argv,af)
-  elif 'list'.startwith(argv[0]) or 'show'.startwith(argv[0]) or 'lst'.startwith(argv[0]):
+  elif 'list'.startswith(argv[0]) or 'show'.startswith(argv[0]) or 'lst'.startswith(argv[0]):
     # show help if there is an extra argument on show
     if len(argv) > 1: return False
     return do_route_list(af)
@@ -363,12 +363,14 @@ def do_addr_del(argv,af):
 # Link module
 @help_msg('do_help_link')
 def do_link(argv,af):
-  if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls','l']):
-    if len(argv)>0:
+  if (not argv):
+    return do_link_show(argv,af)
+  elif 'show'.startswith(argv[0]) or 'list'.startswith(argv[0]) or 'lst'.startswith(argv[0]):
+    if len(argv) > 0:
       argv.pop(0)
     return do_link_show(argv,af)
-  elif argv[0] == 'set':
-    if len(argv)>0:
+  elif 'set'.startswith(argv[0]):
+    if len(argv) > 0:
       argv.pop(0)
     return do_link_set(argv,af)
   else:
@@ -522,6 +524,8 @@ def main(argv):
       cmd_func(argv, af)
       return True
 
+  do_help()
+  exit(1)
   return False
 
 if __name__ == '__main__':
