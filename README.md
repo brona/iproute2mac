@@ -11,7 +11,7 @@ For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `network
 
 ## Supported Mac OS X versions (Tested)
 
-* Mac OS X Maverics 10.10.5 (Python 2.7.10)
+* Mac OS X Sierra 10.12.4 (Python 2.7.10)
 
 ## Supported commands / Example usage
 
@@ -72,11 +72,16 @@ B) Manual installation:
 
 ## Changelog
 
+**v1.2.0**
+* Enhanced input parsing to support arbitrary length commands (Thanks @deployable)
+* Simple test script added (Thanks @deployable)
+* Fixed error return codes to simulate iproute2 (At this moment help messages are inconsistently printed to stderr for all errors unlinke iproute2 behaviour)
+
 **v1.1.2**
-* Correctly show `src` for `ip route get` on IPv6 addresses
+* Correctly show `src` for `ip route get` on IPv6 addresses (Thanks @codeaholics)
 
 **v1.1.1**
-* Added `dev` option to `ip route add` command
+* Added `dev` option to `ip route add` command (Thanks @ThangCZ)
 
 **v1.1.0**
 * Added source IP address to `ip route get` command
@@ -86,16 +91,16 @@ B) Manual installation:
 * Fixed versioning
 
 **v1.0.8**
-* Better error handling and error messages (Thanks rgcr)
+* Better error handling and error messages (Thanks @rgcr)
 
 **v1.0.7**
-* Help messages are sent to stderr (Thanks rgcr)
+* Help messages are sent to stderr (Thanks @rgcr)
 
 **v1.0.6**
 * Fixed `ip -6 neigh` failing for N status flag
 
 **v1.0.5**
-* Added `s` shortcuts to `show` commands (Thanks vmoutoussamy)
+* Added `s` shortcuts to `show` commands (Thanks @vmoutoussamy)
 
 **v1.0.4**
 * Added `ip neigh flush` (Thanks ThangCZ)

@@ -19,7 +19,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.1.2'
+VERSION = '1.2.0'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -48,6 +48,7 @@ def execute_cmd(cmd):
 def matches(arg, command):
   return command.startswith(arg)
 
+# Handles passsing return value, error messages and program exit on error
 def help_msg(help_func):
   def wrapper(func):
     def inner(*args, **kwargs):
@@ -56,14 +57,15 @@ def help_msg(help_func):
         if specific:
           if type(specific) == types.FunctionType:
             if args and kwargs:
-              return specific(*args, **kwargs)
+              specific(*args, **kwargs)
             else:
-              return specific()
+              specific()
+            exit(255)
           else:
             raise Exception("Function expected for: " + help_func)
         else:
           raise Exception("Function variant not defined: " + help_func)
-          return True
+      return True
     return inner
   return wrapper
 
@@ -193,7 +195,6 @@ def do_route_add(argv,af):
   gw=argv[2]
   if via not in ['via','nexthop','gw','dev']:
     do_help_route()
-    exit(1)
   inet=""
   if ":" in target or af==6:
     af=6
@@ -435,7 +436,6 @@ def do_neigh(argv,af):
   if len(argv) > 1:
     if len(argv) < 3 and argv[1] != 'dev':
       do_help_neigh()
-      exit(1)
     idev = argv[2]
   if (not argv) or (argv[0] in ['show','sh','s','list','lst','ls']):
     if af != 4:
@@ -485,7 +485,6 @@ def do_neigh(argv,af):
 
   else:
     do_help_neigh()
-    exit(1)
 
 # Match iproute2 commands
 # https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
@@ -501,9 +500,9 @@ cmds = [
 @help_msg('do_help')
 def main(argv):
   argc=len(argv)
+
   if argc == 0:
-    do_help()
-    exit(1)
+    return False
 
   # Address family
   af=-1 # default / both
@@ -521,11 +520,9 @@ def main(argv):
   for cmd, cmd_func in cmds:
     if cmd.startswith(argv[0]):
       argv.pop(0)
-      cmd_func(argv, af)
-      return True
+      # Functions return true or terminate with exit(255) see help_msg and do_help*
+      return cmd_func(argv, af)
 
-  do_help()
-  exit(1)
   return False
 
 if __name__ == '__main__':
