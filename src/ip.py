@@ -536,6 +536,10 @@ def main(argv):
     print "iproute2mac, v" + VERSION
     exit(0)
 
+  if argv[0] == 'help':
+    do_help()
+    exit(0)
+
   for cmd, cmd_func in cmds:
     if cmd.startswith(argv[0]):
       argv.pop(0)
