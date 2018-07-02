@@ -508,6 +508,7 @@ def do_neigh(argv,af):
 # Match iproute2 commands
 # https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
 cmds = [
+  [ "help",       do_help ],
   [ "address",    do_addr ],
   [ "route",      do_route ],
   [ "neighbor",   do_neigh ],
@@ -544,7 +545,10 @@ def main(argv):
     if cmd.startswith(argv[0]):
       argv.pop(0)
       # Functions return true or terminate with exit(255) see help_msg and do_help*
-      return cmd_func(argv, af)
+      if cmd == "help":
+        return cmd_func()
+      else:
+        return cmd_func(argv, af)
 
   perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
   exit(1)

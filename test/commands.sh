@@ -8,6 +8,9 @@ ip_prefix=10.197.92
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
 
+# ## help
+! $cmd help
+
 # ## route
 
 ! $cmd route help
