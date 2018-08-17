@@ -532,6 +532,9 @@ def main(argv):
     af=4
     argv.pop(0)
 
+  if not argv:
+    return False
+
   if argv[0] == '-V':
     print "iproute2mac, v" + VERSION
     exit(0)
