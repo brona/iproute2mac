@@ -75,8 +75,8 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 ## Changelog
 
 **v1.2.2**
-* Fixed handling arguments while using `ip -4`
-* Fixed `ip help`
+* Fixed handling arguments while using `ip -4` (Thanks @bsholdice)
+* Fixed `ip help` (Thanks @KireinaHoro)
 
 **v1.2.1**
 * Fixed error return codes and test script
