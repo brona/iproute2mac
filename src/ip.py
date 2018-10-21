@@ -19,7 +19,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.2.1'
+VERSION = '1.2.2'
 
 # Utilities
 SUDO = '/usr/bin/sudo'

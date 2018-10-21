@@ -70,9 +70,13 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* Mac OS X Sierra 10.12.4 (Python 2.7.10)
+* OS X El Capitan 10.11.6 (Python 2.7.10)
 
 ## Changelog
+
+**v1.2.2**
+* Fixed handling arguments while using `ip -4`
+* Fixed `ip help`
 
 **v1.2.1**
 * Fixed error return codes and test script
