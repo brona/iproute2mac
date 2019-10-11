@@ -72,7 +72,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* OS X El Capitan 10.11.6 (Python 2.7.10)
+* macOS Catalina 10.15 (19A583, Python 2.7.16)
 
 ## Changelog
 
