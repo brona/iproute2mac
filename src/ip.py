@@ -168,7 +168,11 @@ def do_route_list(af):
       target = ra[0]
       gw     = ra[1]
       flags  = ra[2]
-      dev    = ra[5]
+      # macOS Catalina
+      dev = ra[3]
+      if len(ra) >= 6:
+        # macOS Mojave and earlier
+        dev = ra[5]
       if flags.find('W') != -1 or flags.find('H') != -1:
         continue
       if target == 'default':
