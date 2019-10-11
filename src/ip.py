@@ -21,7 +21,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.2.2'
+VERSION = '1.2.3'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
@@ -168,7 +168,7 @@ def do_route_list(af):
       flags  = ra[2]
       dev    = ra[3]
       target = re.sub('%[^ ]+/','/',target)
-      if flags.find('W') != -1 or flags.find('H') != -1:
+      if flags.find('W') != -1:
         continue
       if re.match("link.+",gw):
         print target + ' dev ' + dev + '  scope link'
@@ -183,7 +183,7 @@ def do_route_list(af):
       if len(ra) >= 6:
         # macOS Mojave and earlier
         dev = ra[5]
-      if flags.find('W') != -1 or flags.find('H') != -1:
+      if flags.find('W') != -1:
         continue
       if target == 'default':
         print 'default via ' + gw + ' dev ' + dev
