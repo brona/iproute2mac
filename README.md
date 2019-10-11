@@ -63,9 +63,11 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 * Route module
   * List IPv4 addresses `ip route`
   * List IPv6 addresses `ip -6 route`
+  * Flush route cache `ip route flush cache`
   * Get route for destination `ip route get 8.8.8.8`
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Add default route `ip route add default nexthop 10.0.0.1`
+  * Replace static route `ip route replace 192.0.2.0/24 dev utun1`
   * Remove static route `ip route del 192.168.0.0/16`
 
 ## Supported Mac OS X versions (Tested)
@@ -73,6 +75,13 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 * OS X El Capitan 10.11.6 (Python 2.7.10)
 
 ## Changelog
+
+**v1.2.3**
+* Fixed `ip route` for Mac OS X Catalina (Thanks @jiegec)
+* `ip route` now returns host addresses (Thanks @crvv)
+* Added `ip route flush cache` (Thanks @npeters)
+* Added `ip route replace 192.0.2.0/24 dev utun1` (Thanks @npeters)
+* Added `ip addr add 192.0.2.1/32 peer 192.0.2.1 dev utun1` (Thanks @npeters)
 
 **v1.2.2**
 * Fixed handling arguments while using `ip -4` (Thanks @bsholdice)
