@@ -21,7 +21,7 @@ import types
 import socket
 
 # Version
-VERSION = '1.2.3'
+VERSION = '1.3.0'
 
 # Utilities
 SUDO = '/usr/bin/sudo'
