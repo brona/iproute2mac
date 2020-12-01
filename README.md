@@ -72,7 +72,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* macOS Catalina 10.15
+* macOS Big Sur 11.0.1
 
 ## Changelog
 
