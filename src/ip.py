@@ -492,6 +492,8 @@ def do_neigh(argv,af):
         l2a=ra[1]
         dev=ra[2]
         exp=ra[3]
+        if idev and idev != dev:
+            continue
         if ra[4] in statuses:
           stat=statuses[ra[4]]
         else:
