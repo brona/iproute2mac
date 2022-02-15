@@ -31,8 +31,10 @@ $cmd rou de $ip_dest via $ip_via
 # ## blackhole
 
 $cmd route add blackhole $ip_dest
+netstat -anr | grep "$ip_dest" | grep B
 $cmd ro sh | tail -n 5 | grep -E "^blackhole $ip_dest"
 $cmd route delete blackhole $ip_dest
+netstat -anr | grep "$ip_dest" && exit 1
 $cmd route add blackhhhole 2>&1 | grep '^TYPE' | grep -E -e '\bblackhole\b'
 
 
