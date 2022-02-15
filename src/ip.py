@@ -240,7 +240,6 @@ def do_route_add(argv,af):
   else:
     gw=argv[2]
   if via not in ['via','nexthop','gw','dev']:
-    perror(via)
     do_help_route()
   inet=""
   if ":" in target or af==6:
