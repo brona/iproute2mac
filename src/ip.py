@@ -382,20 +382,17 @@ def do_addr(argv, af):
     if not argv:
         return do_addr_show(argv, af)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
-        if len(argv) > 0:
-            argv.pop(0)
+        argv.pop(0)
         return do_addr_add(argv, af)
     elif "delete".startswith(argv[0]) and len(argv) >= 3:
-        if len(argv) > 0:
-            argv.pop(0)
+        argv.pop(0)
         return do_addr_del(argv, af)
     elif (
         "list".startswith(argv[0])
         or "show".startswith(argv[0])
         or "lst".startswith(argv[0])
     ):
-        if len(argv) > 0:
-            argv.pop(0)
+        argv.pop(0)
         return do_addr_show(argv, af)
     else:
         return False
@@ -475,7 +472,6 @@ def do_addr_add(argv, af):
     except IndexError:
         perror("dev not found")
         exit(1)
-        return False
     inet = ""
     if ":" in addr or af == 6:
         af = 6
@@ -496,7 +492,6 @@ def do_addr_del(argv, af):
     except IndexError:
         perror("dev not found")
         exit(1)
-        return False
     inet = "inet"
     if ":" in addr or af == 6:
         af = 6
@@ -516,12 +511,10 @@ def do_link(argv, af):
         or "list".startswith(argv[0])
         or "lst".startswith(argv[0])
     ):
-        if len(argv) > 0:
-            argv.pop(0)
+        argv.pop(0)
         return do_link_show(argv, af)
     elif "set".startswith(argv[0]):
-        if len(argv) > 0:
-            argv.pop(0)
+        argv.pop(0)
         return do_link_set(argv, af)
     else:
         return False
