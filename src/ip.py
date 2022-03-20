@@ -92,10 +92,9 @@ def randomMAC():
 # Help
 def do_help(argv=None, af=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
-    perror("       ip -V")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -4 | -6 }")
-    perror("")
+    perror("       OPTIONS := { -V[ersion] |")
+    perror("                    -4 | -6 }")
     perror("iproute2mac")
     perror("Homepage: https://github.com/brona/iproute2mac")
     perror(
@@ -667,37 +666,40 @@ def do_neigh(argv, af):
 # Match iproute2 commands
 # https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
 cmds = [
-    ["address", do_addr],
-    ["route", do_route],
-    ["neighbor", do_neigh],
-    ["neighbour", do_neigh],
-    ["link", do_link],
-    ["help", do_help],
+    ("address", do_addr),
+    ("route", do_route),
+    ("neighbor", do_neigh),
+    ("neighbour", do_neigh),
+    ("link", do_link),
+    ("help", do_help),
 ]
 
 
 @help_msg("do_help")
 def main(argv):
-    argc = len(argv)
 
-    if argc == 0:
-        return False
-
-    # Address family
+    # Detect Address family
     af = -1  # default / both
-    if argv[0] == "-6":
+    if argv and argv[0] == "-6":
         af = 6
         argv.pop(0)
-    elif argv[0] == "-4":
+    elif argv and argv[0] == "-4":
         af = 4
         argv.pop(0)
 
     if not argv:
         return False
 
-    if argv[0] == "-V":
+    if argv[0] in ["-V", "-Version"]:
         print("iproute2mac, v" + VERSION)
         exit(0)
+
+    if argv[0] in ["-h", "-help"]:
+        return False
+
+    if argv[0].startswith("-"):
+        perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
+        exit(255)
 
     for cmd, cmd_func in cmds:
         if cmd.startswith(argv[0]):
