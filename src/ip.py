@@ -145,6 +145,7 @@ def do_help_route():
     perror("       ip route get ADDRESS")
     perror("       ip route { add | del | replace } ROUTE")
     perror("       ip route flush cache")
+    perror("       ip route flush table main")
     perror("ROUTE := NODE_SPEC [ INFO_SPEC ]")
     perror("NODE_SPEC := [ TYPE ] PREFIX")
     perror("INFO_SPEC := NH")
@@ -198,7 +199,7 @@ def do_route(argv, af):
     elif "replace".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_del(argv, af) and do_route_add(argv, af)
-    elif "flush".startswith(argv[0]) and len(argv) >= 2:
+    elif "flush".startswith(argv[0]) and len(argv) >= 1:
         argv.pop(0)
         return do_route_flush(argv, af)
     else:
@@ -306,8 +307,24 @@ def do_route_del(argv, af):
 
 
 def do_route_flush(argv, af):
-    target = argv[0]
-    return execute_cmd(SUDO + " " + ROUTE + " -n flush ")
+
+    if not argv:
+        perror('"ip route flush" requires arguments.')
+        perror("")
+        return False
+
+    # https://github.com/brona/iproute2mac/issues/38
+    # http://linux-ip.net/html/tools-ip-route.html
+    if argv[0] == "cache":
+        print("iproute2mac: There is no route cache to flush in MacOS,")
+        print("             returning 0 status code for compatibility.")
+        return True
+    elif len(argv) == 2 and argv[0] == "table" and argv[1] == "main":
+        family = "-inet6" if af == 6 else "-inet"
+        print("iproute2mac: Flushing all routes")
+        return execute_cmd(SUDO + " " + ROUTE + " -n flush " + family)
+    else:
+        return False
 
 
 def do_route_get(argv, af):
