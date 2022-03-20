@@ -90,7 +90,7 @@ def randomMAC():
 
 
 # Help
-def do_help(argv, af):
+def do_help(argv=None, af=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("       ip -V")
     perror("where  OBJECT := { link | addr | route | neigh }")
