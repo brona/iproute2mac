@@ -98,7 +98,8 @@ def do_help_route():
   perror( "Usage: ip route list")
   perror( "       ip route get ADDRESS")
   perror( "       ip route { add | del | flush | replace } ROUTE")
-  perror( "ROUTE := PREFIX [ nexthop NH ]")
+  perror( "TYPE := { blackhole }")
+  perror( "ROUTE := [ TYPE ] PREFIX [ nexthop NH ]")
   exit(255)
 
 def do_help_addr():
@@ -123,7 +124,7 @@ def do_help_neigh():
 def do_route(argv,af):
   if not argv:
     return do_route_list(af)
-  elif 'add'.startswith(argv[0]) and len(argv) >= 4:
+  elif 'add'.startswith(argv[0]) and len(argv) >= 3:
     if len(argv) > 0:
       argv.pop(0)
     return do_route_add(argv,af)
@@ -158,6 +159,7 @@ def do_route_list(af):
   if status:
       perror(res)
       return False
+  blackholes = []
   res=res.split('\n')
   res=res[4:] # Removes first 4 lines
   for r in res:
@@ -169,6 +171,9 @@ def do_route_list(af):
       dev    = ra[3]
       target = re.sub('%[^ ]+/','/',target)
       if flags.find('W') != -1:
+        continue
+      if flags.find('B') >= 0:
+        blackholes.append(ra)
         continue
       if re.match("link.+",gw):
         print(target + ' dev ' + dev + '  scope link')
@@ -185,33 +190,55 @@ def do_route_list(af):
         dev = ra[5]
       if flags.find('W') != -1:
         continue
+      if flags.find('B') >= 0:
+        blackholes.append(ra)
+        continue
       if target == 'default':
         print('default via ' + gw + ' dev ' + dev)
       else:
-        dots=target.count('.')
-        if target.find('/') == -1:
-          addr=target
-          netmask=8+dots*8
-        else:
-          [addr,netmask] = target.split('/')
-
-        if dots == 2:
-          addr = addr + '.0'
-        elif dots == 1:
-          addr = addr + '.0.0'
-        elif dots == 0:
-          addr = addr + '.0.0.0'
-
+        cidr = cidr_from_netstat_target(target)
         if re.match("link.+",gw):
-          print(addr + '/' + str(netmask)+ ' dev ' + dev + '  scope link')
+          print(cidr + ' dev ' + dev + '  scope link')
         else:
-          print(addr + '/' + str(netmask) + ' via ' + gw + ' dev ' + dev)
+          print(cidr + ' via ' + gw + ' dev ' + dev)
+  for b in blackholes:
+    target = b[0]
+    if af == 6:
+      target = re.sub('%[^ ]+/','/',target)
+      print('blackhole ' + target)
+    else:
+      cidr = cidr_from_netstat_target(target)
+      print('blackhole ' + cidr)
   return True
+
+def cidr_from_netstat_target(target):
+  dots=target.count('.')
+  if target.find('/') == -1:
+    addr=target
+    netmask=8+dots*8
+  else:
+    [addr,netmask] = target.split('/')
+
+  if dots == 2:
+    addr = addr + '.0'
+  elif dots == 1:
+    addr = addr + '.0.0'
+  elif dots == 0:
+    addr = addr + '.0.0.0'
+  return addr + '/' + str(netmask)
+
 
 def do_route_add(argv,af):
   target=argv[0]
   via=argv[1]
-  gw=argv[2]
+  options=""
+  if "blackhole"==target:
+    target=via
+    via="via"
+    gw="127.0.0.1"
+    options="-blackhole " 
+  else:
+    gw=argv[2]
   if via not in ['via','nexthop','gw','dev']:
     do_help_route()
   inet=""
@@ -219,11 +246,13 @@ def do_route_add(argv,af):
     af=6
     inet="-inet6 "
   if "dev"==via: gw = "-interface " + gw
-  return execute_cmd(SUDO + " " + ROUTE + " add " + inet + target + " " + gw)
+  return execute_cmd(SUDO + " " + ROUTE + " add " + inet + target + " " + gw + " " + options)
 
 def do_route_del(argv,af):
   target=argv[0]
   inet=""
+  if "blackhole"==target:
+    target=" ".join([ argv[1], "127.0.0.1", "-blackhole" ])
   if ":" in target or af==6:
     af=6
     inet="-inet6 "
