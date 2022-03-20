@@ -49,6 +49,34 @@ def execute_cmd(cmd):
         return False
 
 
+# Classful to CIDR conversion
+def cidr_from_netstat_dst(target):
+    dots = target.count(".")
+    if target.find("/") == -1:
+        addr = target
+        netmask = (dots + 1) * 8
+    else:
+        [addr, netmask] = target.split("/")
+
+    addr = addr + ".0" * (3 - dots)
+    return addr + "/" + str(netmask)
+
+
+# Converts e.g. ffff0000 into /16
+# assumes valid netmask, counts set bits.
+# https://wiki.python.org/moin/BitManipulation#bitCount.28.29
+# Could be replaced with bin(netmask).count("1") or .bit_count() in Python 3.10
+# https://bugs.python.org/issue29882
+def addr_repl_netmask(matchobj):
+    hexmask = matchobj.group(1)
+    netmask = int(hexmask, 16)
+    cidr = 0
+    while netmask:
+        netmask &= netmask - 1
+        cidr += 1
+    return "/%d" % cidr
+
+
 # Handles passsing return value, error messages and program exit on error
 def help_msg(help_func):
     def wrapper(func):
@@ -115,9 +143,13 @@ def do_help(argv=None, af=None):
 def do_help_route():
     perror("Usage: ip route list")
     perror("       ip route get ADDRESS")
-    perror("       ip route { add | del | flush | replace } ROUTE")
+    perror("       ip route { add | del | replace } ROUTE")
+    perror("       ip route flush cache")
+    perror("ROUTE := NODE_SPEC [ INFO_SPEC ]")
+    perror("NODE_SPEC := [ TYPE ] PREFIX")
+    perror("INFO_SPEC := NH")
     perror("TYPE := { blackhole }")
-    perror("ROUTE := [ TYPE ] PREFIX [ nexthop NH ]")
+    perror("NH := { via ADDRESS | gw ADDRESS | nexthop ADDRESS | dev STRING }")
     exit(255)
 
 
@@ -144,18 +176,9 @@ def do_help_neigh():
 # Route Module
 @help_msg("do_help_route")
 def do_route(argv, af):
-    if not argv:
-        return do_route_list(af)
-    elif "add".startswith(argv[0]) and len(argv) >= 3:
-        if len(argv) > 0:
-            argv.pop(0)
-        return do_route_add(argv, af)
-    elif "delete".startswith(argv[0]) and len(argv) >= 2:
-        if len(argv) > 0:
-            argv.pop(0)
-        return do_route_del(argv, af)
-    elif (
-        "list".startswith(argv[0])
+    if (
+        not argv
+        or "list".startswith(argv[0])
         or "show".startswith(argv[0])
         or "lst".startswith(argv[0])
     ):
@@ -166,32 +189,32 @@ def do_route(argv, af):
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
         return do_route_get(argv, af)
-    elif "flush".startswith(argv[0]) and len(argv) == 2:
+    elif "add".startswith(argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_route_add(argv, af)
+    elif "delete".startswith(argv[0]) and len(argv) >= 2:
+        argv.pop(0)
+        return do_route_del(argv, af)
+    elif "replace".startswith(argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_route_del(argv, af) and do_route_add(argv, af)
+    elif "flush".startswith(argv[0]) and len(argv) >= 2:
         argv.pop(0)
         return do_route_flush(argv, af)
-    elif "replace".startswith(argv[0]) and len(argv) >= 4:
-        if len(argv) > 0:
-            argv.pop(0)
-        do_route_del(argv, af)
-        return do_route_add(argv, af)
     else:
         return False
     return True
 
 
 def do_route_list(af):
-    if af == 6:
-        status, res = subprocess.getstatusoutput(
-            NETSTAT + " -nr -f inet6 2>/dev/null"
-        )
-    else:
-        status, res = subprocess.getstatusoutput(
-            NETSTAT + " -nr -f inet 2>/dev/null"
-        )
+    # ip route prints IPv6 or IPv4, never both
+    inet = "inet6" if af == 6 else "inet"
+    status, res = subprocess.getstatusoutput(
+        NETSTAT + " -nr -f " + inet + " 2>/dev/null"
+    )
     if status:
         perror(res)
         return False
-    blackholes = []
     res = res.split("\n")
     res = res[4:]  # Removes first 4 lines
     for r in res:
@@ -204,8 +227,8 @@ def do_route_list(af):
             target = re.sub(r"%[^ ]+/", "/", target)
             if flags.find("W") != -1:
                 continue
-            if flags.find("B") >= 0:
-                blackholes.append(ra)
+            if flags.find("B") != -1:
+                print("blackhole " + target)
                 continue
             if re.match(r"link.+", gw):
                 print(target + " dev " + dev + "  scope link")
@@ -222,78 +245,64 @@ def do_route_list(af):
                 dev = ra[5]
             if flags.find("W") != -1:
                 continue
-            if flags.find("B") >= 0:
-                blackholes.append(ra)
+            if flags.find("B") != -1:
+                print("blackhole " + cidr_from_netstat_dst(target))
                 continue
             if target == "default":
                 print("default via " + gw + " dev " + dev)
             else:
-                cidr = cidr_from_netstat_target(target)
+                cidr = cidr_from_netstat_dst(target)
                 if re.match(r"link.+", gw):
                     print(cidr + " dev " + dev + "  scope link")
                 else:
                     print(cidr + " via " + gw + " dev " + dev)
-    for b in blackholes:
-        target = b[0]
-        if af == 6:
-            target = re.sub(r"%[^ ]+/", "/", target)
-            print("blackhole " + target)
-        else:
-            cidr = cidr_from_netstat_target(target)
-            print("blackhole " + cidr)
     return True
 
 
-def cidr_from_netstat_target(target):
-    dots = target.count(".")
-    if target.find("/") == -1:
-        addr = target
-        netmask = 8 + dots * 8
-    else:
-        [addr, netmask] = target.split("/")
-
-    if dots == 2:
-        addr = addr + ".0"
-    elif dots == 1:
-        addr = addr + ".0.0"
-    elif dots == 0:
-        addr = addr + ".0.0.0"
-    return addr + "/" + str(netmask)
-
-
 def do_route_add(argv, af):
-    target = argv[0]
-    via = argv[1]
     options = ""
-    if "blackhole" == target:
-        target = via
-        via = "via"
-        gw = "127.0.0.1"
-        options = "-blackhole "
-    else:
+    if argv[0] == "blackhole":
+        argv.pop(0)
+        if len(argv) != 1:
+            return False
+        argv.append("via")
+        argv.append("::1" if ":" in argv[0] or af == 6 else "127.0.0.1")
+        options = "-blackhole"
+
+    if len(argv) != 3:
+        return False
+
+    if argv[1] in ["via", "nexthop", "gw"]:
         gw = argv[2]
-    if via not in ["via", "nexthop", "gw", "dev"]:
+    elif argv[1] in ["dev"]:
+        gw = "-interface " + argv[2]
+    else:
         do_help_route()
-    inet = ""
-    if ":" in target or af == 6:
-        af = 6
-        inet = "-inet6 "
-    if "dev" == via:
-        gw = "-interface " + gw
+
+    prefix = argv[0]
+    inet = "-inet6 " if ":" in prefix or af == 6 else ""
+
     return execute_cmd(
-        SUDO + " " + ROUTE + " add " + inet + target + " " + gw + " " + options
+        SUDO + " " + ROUTE + " add " + inet + prefix + " " + gw + " " + options
     )
 
 
 def do_route_del(argv, af):
-    target = argv[0]
-    inet = ""
-    if "blackhole" == target:
-        target = " ".join([argv[1], "127.0.0.1", "-blackhole"])
-    if ":" in target or af == 6:
-        af = 6
-        inet = "-inet6 "
-    return execute_cmd(SUDO + " " + ROUTE + " delete " + inet + target)
+    options = ""
+    if argv[0] == "blackhole":
+        argv.pop(0)
+        if len(argv) != 1:
+            return False
+        if ":" in argv[0] or af == 6:
+            options = " ::1 -blackhole"
+        else:
+            options = " 127.0.0.1 -blackhole"
+
+    prefix = argv[0]
+    inet = "-inet6 " if ":" in prefix or af == 6 else ""
+    return execute_cmd(
+        SUDO + " " + ROUTE + " delete " + inet + prefix + options
+    )
 
 
 def do_route_flush(argv, af):
@@ -374,16 +383,6 @@ def do_addr(argv, af):
     else:
         return False
     return True
-
-
-def addr_repl_netmask(matchobj):
-    hexmask = matchobj.group(1)
-    netmask = int(hexmask, 16)
-    cidr = 0
-    while netmask:
-        cidr += netmask & 0x1
-        netmask >>= 1
-    return "/%d" % cidr
 
 
 def do_addr_show(argv, af):

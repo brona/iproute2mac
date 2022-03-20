@@ -4,13 +4,27 @@ set -uex
 rundir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
 
 cmd="$rundir"/../src/ip.py
-ip_prefix=10.197.92
+ip_prefix=192.0.2
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
 
-# ## route
+# basics
+
+$cmd -V
+
+! $cmd help
+
+$cmd help 2>&1 >/dev/null | grep "Usage: ip "
+
+! $cmd asdf sh
+
+! $cmd -M route sh
+
+# route
 
 ! $cmd route help
+
+$cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
 $cmd route show
 
@@ -18,27 +32,36 @@ $cmd ro sho
 
 $cmd r s
 
+! $cmd r asdf
 
-# ## add/delete
+## add/delete
 
 $cmd route add $ip_dest via $ip_via
+netstat -anr | grep "$ip_dest" | grep "$ip_via"
+
 $cmd route delete $ip_dest via $ip_via
+! netstat -anr | grep "$ip_dest"
 
 $cmd ro add $ip_dest via $ip_via
+netstat -anr | grep "$ip_dest" | grep "$ip_via"
+
 $cmd rou de $ip_dest via $ip_via
+! netstat -anr | grep "$ip_dest"
 
 
-# ## blackhole
+## add/show/delete blackhole
 
 $cmd route add blackhole $ip_dest
-netstat -anr | grep "$ip_dest" | grep B
-$cmd ro sh | tail -n 5 | grep -E "^blackhole $ip_dest"
+netstat -anr | grep "$ip_dest" | grep "B"
+
+$cmd ro sh | grep -E "^blackhole $ip_dest"
+
 $cmd route delete blackhole $ip_dest
-netstat -anr | grep "$ip_dest" && exit 1
-$cmd route add blackhhhole 2>&1 | grep '^TYPE' | grep -E -e '\bblackhole\b'
+! netstat -anr | grep "$ip_dest"
 
+# address
 
-# ## address
+$cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
 
 $cmd address show
 
@@ -46,15 +69,14 @@ $cmd ad sho
 
 $cmd a s
 
-$cmd -V
+! $cmd addr asdf
 
-! $cmd adii sh
 
-# ## link
+# link
 
-$cmd link help 2>&1| grep 'Usage: ip link show'
+$cmd link help 2>&1 >/dev/null | grep "Usage: ip link"
 
-$cmd lin hel 2>&1| grep 'Usage: ip link show'
+$cmd lin hel 2>&1 >/dev/null | grep "Usage: ip link"
 
 $cmd link show | grep mtu
 
@@ -66,9 +88,15 @@ $cmd lin lst | grep mtu
 
 $cmd l s | grep mtu
 
-# ## neigh
+! $cmd link asdf
+
+# neigh
+
+$cmd nei help 2>&1 >/dev/null | grep "Usage: ip neighbour"
 
 $cmd nei show
+
+! $cmd neigh asdf
 
 echo "Tests passed!!"
 
