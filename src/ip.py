@@ -90,7 +90,7 @@ def randomMAC():
 
 
 # Help
-def do_help():
+def do_help(argv, af):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("       ip -V")
     perror("where  OBJECT := { link | addr | route | neigh }")
@@ -672,6 +672,7 @@ cmds = [
     ["neighbor", do_neigh],
     ["neighbour", do_neigh],
     ["link", do_link],
+    ["help", do_help],
 ]
 
 
@@ -696,10 +697,6 @@ def main(argv):
 
     if argv[0] == "-V":
         print("iproute2mac, v" + VERSION)
-        exit(0)
-
-    if argv[0] == "help":
-        do_help()
         exit(0)
 
     for cmd, cmd_func in cmds:
