@@ -310,7 +310,6 @@ def do_route_del(argv, af):
 
 
 def do_route_flush(argv, af):
-
     if not argv:
         perror('"ip route flush" requires arguments.')
         perror("")
@@ -552,16 +551,15 @@ def do_link_set(argv, af):
 
     dev = argv[0]
 
+    IFCONFIG_DEV_CMD = SUDO + " " + IFCONFIG + " " + dev
     try:
         args = iter(argv)
         for arg in args:
             if arg == "up":
-                if not execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " up"):
+                if not execute_cmd(IFCONFIG_DEV_CMD + " up"):
                     return False
             elif arg == "down":
-                if not execute_cmd(
-                    SUDO + " " + IFCONFIG + " " + dev + " down"
-                ):
+                if not execute_cmd(IFCONFIG_DEV_CMD + " down"):
                     return False
             elif arg in ["address", "addr", "lladdr"]:
                 addr = next(args)
@@ -579,15 +577,11 @@ def do_link_set(argv, af):
                         re.MULTILINE,
                     )
                     addr = details[details.index(dev) + 1]
-                if not execute_cmd(
-                    SUDO + " " + IFCONFIG + " " + dev + " lladdr " + addr
-                ):
+                if not execute_cmd(IFCONFIG_DEV_CMD + " lladdr " + addr):
                     return False
             elif arg == "mtu":
                 mtu = int(next(args))
-                if not execute_cmd(
-                    SUDO + " " + IFCONFIG + " " + dev + " mtu " + str(mtu)
-                ):
+                if not execute_cmd(IFCONFIG_DEV_CMD + " mtu " + str(mtu)):
                     return False
     except Exception:
         return False
@@ -730,7 +724,6 @@ cmds = [
 
 @help_msg("do_help")
 def main(argv):
-
     # Detect Address family
     af = -1  # default / both
     if argv and argv[0] == "-6":
