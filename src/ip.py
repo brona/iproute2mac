@@ -186,10 +186,9 @@ def do_help_neigh():
 # Route Module
 @help_msg("do_help_route")
 def do_route(argv, af):
-    if not argv or any_startswith(["show", "lst", "list"], argv[0]):
-        # show help if there is an extra argument on show
-        if len(argv) > 1:
-            return False
+    if not argv or (
+        any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
+    ):
         return do_route_list(af)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
@@ -384,6 +383,10 @@ def do_route_get(argv, af):
 @help_msg("do_help_addr")
 def do_addr(argv, af):
     if not argv:
+        argv.append("show")
+
+    if any_startswith(["show", "lst", "list"], argv[0]):
+        argv.pop(0)
         return do_addr_show(argv, af)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
@@ -391,9 +394,6 @@ def do_addr(argv, af):
     elif "delete".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_del(argv, af)
-    elif any_startswith(["show", "lst", "list"], argv[0]):
-        argv.pop(0)
-        return do_addr_show(argv, af)
     else:
         return False
     return True
@@ -505,8 +505,9 @@ def do_addr_del(argv, af):
 @help_msg("do_help_link")
 def do_link(argv, af):
     if not argv:
-        return do_link_show(argv, af)
-    elif any_startswith(["show", "lst", "list"], argv[0]):
+        argv.append("show")
+
+    if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_link_show(argv, af)
     elif "set".startswith(argv[0]):
@@ -695,7 +696,6 @@ def do_neigh_show(argv, af):
     return True
 
 
-# ip neigh flush dev DEVICE
 def do_neigh_flush(argv, af):
     if len(argv) != 2:
         perror("Flush requires arguments.")
