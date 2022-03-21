@@ -21,7 +21,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Utilities
 SUDO = "/usr/bin/sudo"

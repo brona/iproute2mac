@@ -50,10 +50,11 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * Show all IPv4 (ARP) neighbours `ip -4 neigh`
   * Show all IPv6 (NDP) neighbours `ip -6 neigh`
   * Show all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh show dev en0`
+  * Show neighbours filtered by prefix `ip -4 neigh show 192.0.2.0/24`
   * IPv6 (NDP) neighbours cannot be currently shown for a specific interface
   * Flush all neighbours (IPv4 + IPv6) for a specific interface `ip neigh flush dev en0`
   * Flush all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh flush dev en0`
-  * IPv6 (NDP) neighbours are currently flushed for all interfaces
+  * IPv6 (NDP) neighbours are being flushed for all interfaces
 * Address module
   * List all addresses `ip addr`
   * List IPv4 addresses `ip -4 addr`
@@ -63,7 +64,8 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 * Route module
   * List IPv4 addresses `ip route`
   * List IPv6 addresses `ip -6 route`
-  * Flush route cache `ip route flush cache`
+  * Flush route cache (no-op on MacOS) `ip route flush cache`
+  * Flush routes `ip route flush table main`
   * Get route for destination `ip route get 8.8.8.8`
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Add default route `ip route add default nexthop 10.0.0.1`
@@ -72,9 +74,18 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* macOS Big Sur 11.0.1
+* macOS Monterey 12.3
 
 ## Changelog
+
+**v1.4.0**
+* Internal cleanup and code style changes
+* Added blackhole routes `ip route add blackhole 192.0.2.0/24` (Thanks @mhio)
+* :warning: `ip route flush cache` no longer flushes anything
+* `ip route flush table main` flushes all routes
+* `ip neigh show 192.0.2.0/24` filters neighbours
+* Flag compatibility for `-help` and `-Version`
+* Uniform matching for show command alternatives
 
 **v1.3.0**
 * Migrated to Python 3
@@ -125,7 +136,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 * Added `s` shortcuts to `show` commands (Thanks @vmoutoussamy)
 
 **v1.0.4**
-* Added `ip neigh flush` (Thanks ThangCZ)
+* Added `ip neigh flush` (Thanks @ThangCZ)
 * Added 'dev' option for `ip neigh show` and `ip neigh flush`
 
 **v1.0.3**
