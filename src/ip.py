@@ -11,13 +11,14 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
-import sys
-import subprocess
-import re
-import string
+import ipaddress
 import random
-import types
+import re
 import socket
+import string
+import subprocess
+import sys
+import types
 
 # Version
 VERSION = "1.3.0"
@@ -75,6 +76,13 @@ def addr_repl_netmask(matchobj):
         netmask &= netmask - 1
         cidr += 1
     return "/%d" % cidr
+
+
+def any_startswith(words, test):
+    for word in words:
+        if word.startswith(test):
+            return True
+    return False
 
 
 # Handles passsing return value, error messages and program exit on error
@@ -170,19 +178,15 @@ def do_help_link():
 
 
 def do_help_neigh():
-    perror("Usage: ip neighbour { show | flush } [ dev DEV ]")  # delete, add
+    perror("Usage: ip neighbour show [ [ to ] PREFIX ] [ dev DEV ]")
+    perror("       ip neighbour flush [ dev DEV ]")
     exit(255)
 
 
 # Route Module
 @help_msg("do_help_route")
 def do_route(argv, af):
-    if (
-        not argv
-        or "list".startswith(argv[0])
-        or "show".startswith(argv[0])
-        or "lst".startswith(argv[0])
-    ):
+    if not argv or any_startswith(["show", "lst", "list"], argv[0]):
         # show help if there is an extra argument on show
         if len(argv) > 1:
             return False
@@ -387,11 +391,7 @@ def do_addr(argv, af):
     elif "delete".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_del(argv, af)
-    elif (
-        "list".startswith(argv[0])
-        or "show".startswith(argv[0])
-        or "lst".startswith(argv[0])
-    ):
+    elif any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_addr_show(argv, af)
     else:
@@ -506,11 +506,7 @@ def do_addr_del(argv, af):
 def do_link(argv, af):
     if not argv:
         return do_link_show(argv, af)
-    elif (
-        "show".startswith(argv[0])
-        or "list".startswith(argv[0])
-        or "lst".startswith(argv[0])
-    ):
+    elif any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_link_show(argv, af)
     elif "set".startswith(argv[0]):
@@ -598,77 +594,125 @@ def do_link_set(argv, af):
 
 
 # Neigh module
+@help_msg("do_help_neigh")
 def do_neigh(argv, af):
-    statuses = {"R": "REACHABLE", "S": "STALE"}
-    idev = None
-    if len(argv) > 1:
-        if len(argv) < 3 and argv[1] != "dev":
-            do_help_neigh()
-        idev = argv[2]
-    if (not argv) or (argv[0] in ["show", "sh", "s", "list", "lst", "ls"]):
-        if af != 4:
-            (status, res) = subprocess.getstatusoutput(
-                NDP + " -an 2>/dev/null"
-            )
-            if status != 0:
-                return False
-            res = res.split("\n")
-            res = res[1:]
-            for r in res:
-                ra = r.split()
-                l3a = re.sub(r"%.+$", "", ra[0])  # remove interface
-                l2a = ra[1]
-                dev = ra[2]
-                exp = ra[3]
-                if idev and idev != dev:
-                    continue
-                if ra[4] in statuses:
-                    stat = statuses[ra[4]]
-                else:
-                    stat = "INCOMPLETE"
-                if l2a == "(incomplete)" and stat != "REACHABLE":
-                    print(l3a + " dev " + dev + " INCOMPLETE")
-                else:
-                    print(l3a + " dev " + dev + " lladdr " + l2a + " " + stat)
-        if af != 6:
-            if idev:
-                (status, res) = subprocess.getstatusoutput(
-                    ARP + " -anli " + idev + " 2>/dev/null"
-                )
-            else:
-                (status, res) = subprocess.getstatusoutput(
-                    ARP + " -anl 2>/dev/null"
-                )
-            if status != 0:
-                return False
-            res = res.split("\n")
-            res = res[1:]
-            for r in res:
-                ra = r.split()
-                l3a = ra[0]
-                l2a = ra[1]
-                dev = ra[4]
-                if l2a == "(incomplete)":
-                    print(l3a + " dev " + dev + " INCOMPLETE")
-                else:
-                    print(
-                        l3a + " dev " + dev + " lladdr " + l2a + " REACHABLE"
-                    )
-    # TODO: delete, add
-    elif argv[0] in ["f", "fl", "flush"]:
-        if not idev:
-            perror("Flush requires arguments.")
-            exit(1)
-        if af != 4:
-            # TODO: dev option for ipv6 (ndp command doesn't support it now)
-            if not execute_cmd(SUDO + " " + NDP + " -c"):
-                return False
-        if af != 6:
-            if not execute_cmd(SUDO + " " + ARP + " -a -d -i " + idev):
-                return False
-    else:
-        do_help_neigh()
+    if not argv:
+        argv.append("show")
 
+    if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
+        argv.pop(0)
+        return do_neigh_show(argv, af)
+    elif "flush".startswith(argv[0]):
+        argv.pop(0)
+        return do_neigh_flush(argv, af)
+    else:
+        return False
+
+
+def do_neigh_show(argv, af):
+    prefix = None
+    dev = None
+    try:
+        while argv:
+            arg = argv.pop(0)
+            if arg == "to":
+                prefix = argv.pop(0)
+            elif arg == "dev":
+                dev = argv.pop(0)
+            elif prefix is None:
+                prefix = arg
+            else:
+                return False
+        if prefix:
+            prefix = ipaddress.ip_network(prefix, strict=False)
+    except Exception:
+        return False
+
+    nd_ll_states = {
+        "R": "REACHABLE",
+        "S": "STALE",
+        "D": "DELAY",
+        "P": "PROBE",
+        "I": "INCOMPLETE",
+        "N": "INCOMPLETE",
+        "W": "INCOMPLETE",
+    }
+
+    neighs = []
+
+    if af != 4:
+        res = subprocess.run(
+            [NDP, "-an"], capture_output=True, text=True, check=True
+        )
+        for row in res.stdout.splitlines()[1:]:
+            cols = row.split()
+            entry = {}
+            entry["l3a"] = re.sub(r"%.+$", "", cols[0])
+            entry["l2a"] = cols[1] if cols[1] != "(incomplete)" else None
+            entry["dev"] = cols[2]
+            if cols[1] == "(incomplete)" and cols[4] != "R":
+                entry["status"] = "INCOMPLETE"
+            else:
+                entry["status"] = nd_ll_states[cols[4]]
+            entry["router"] = len(cols) >= 6 and cols[5] == "R"
+            neighs.append(entry)
+
+    if af != 6:
+        idev = ("i " + dev) if dev else ""
+        res = subprocess.run(
+            [ARP, "-anl" + idev], capture_output=True, text=True, check=True
+        )
+        for row in res.stdout.splitlines()[1:]:
+            cols = row.split()
+            entry = {}
+            entry["l3a"] = cols[0]
+            entry["l2a"] = cols[1] if cols[1] != "(incomplete)" else None
+            entry["dev"] = cols[4]
+            if cols[1] == "(incomplete)":
+                entry["status"] = "INCOMPLETE"
+            else:
+                entry["status"] = "REACHABLE"
+            entry["router"] = False
+            neighs.append(entry)
+
+    for nb in neighs:
+        if dev and nb["dev"] != dev:
+            continue
+        if prefix and ipaddress.ip_address(nb["l3a"]) not in prefix:
+            continue
+
+        line = nb["l3a"]
+        if not dev:
+            line += " dev " + nb["dev"]
+        if nb["l2a"]:
+            line += " lladdr " + nb["l2a"]
+        if nb["router"]:
+            line += " router"
+        line += " " + nb["status"]
+
+        print(line)
+
+    return True
+
+
+# ip neigh flush dev DEVICE
+def do_neigh_flush(argv, af):
+    if len(argv) != 2:
+        perror("Flush requires arguments.")
+        exit(1)
+
+    if argv[0] != "dev":
+        return False
+    dev = argv[1]
+
+    if af != 4:
+        print(
+            "iproute2mac: NDP doesn't support filtering by interface,"
+            "flushing all IPv6 entries."
+        )
+        execute_cmd(SUDO + " " + NDP + " -cn")
+    if af != 6:
+        execute_cmd(SUDO + " " + ARP + " -a -d -i " + dev)
     return True
 
 
