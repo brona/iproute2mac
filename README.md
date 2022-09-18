@@ -74,9 +74,12 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* macOS Monterey 12.3
+* macOS Monterey 12.6
 
 ## Changelog
+
+**v1.4.1**
+* Fixed `ip neigh show dev en0` (Issue #43, Thanks @SimonTate)
 
 **v1.4.0**
 * Internal cleanup and code style changes

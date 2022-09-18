@@ -21,7 +21,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
@@ -653,13 +653,11 @@ def do_neigh_show(argv, af):
             neighs.append(entry)
 
     if af != 6:
-        args = [ARP, "-anl" ]
+        args = [ARP, "-anl"]
         if dev:
-            args += [ "-i", dev ]
+            args += ["-i", dev]
 
-        res = subprocess.run(
-            args, capture_output=True, text=True, check=True
-        )
+        res = subprocess.run(args, capture_output=True, text=True, check=True)
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
             entry = {}
