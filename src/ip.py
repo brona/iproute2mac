@@ -653,9 +653,12 @@ def do_neigh_show(argv, af):
             neighs.append(entry)
 
     if af != 6:
-        idev = ("i " + dev) if dev else ""
+        args = [ARP, "-anl" ]
+        if dev:
+            args += [ "-i", dev ]
+
         res = subprocess.run(
-            [ARP, "-anl" + idev], capture_output=True, text=True, check=True
+            args, capture_output=True, text=True, check=True
         )
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
