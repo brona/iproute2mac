@@ -9,5 +9,3 @@ To test your code it can be useful to create an alias with the following command
 alias ip="<path-to-repo>/iproute2mac/src/ip.py"
 ```
 To have it permanently add the above command to your `~/.zshrc` or `~/.bashrc` file.
-
-Changes should now immediatly take effect. 
