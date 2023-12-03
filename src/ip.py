@@ -273,8 +273,15 @@ def do_route_add(argv, af):
         argv.append("::1" if ":" in argv[0] or af == 6 else "127.0.0.1")
         options = "-blackhole"
 
-    if len(argv) != 3:
+    if len(argv) not in (3, 5):
         return False
+
+    if len(argv) == 5:
+        perror(
+            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}".format(
+                argv[3], argv[4]
+            )
+        )
 
     if argv[1] in ["via", "nexthop", "gw"]:
         gw = argv[2]
