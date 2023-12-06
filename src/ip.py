@@ -732,28 +732,31 @@ cmds = [
 
 @help_msg("do_help")
 def main(argv):
-    # Detect Address family
     af = -1  # default / both
-    if argv and argv[0] == "-6":
-        af = 6
-        argv.pop(0)
-    elif argv and argv[0] == "-4":
-        af = 4
-        argv.pop(0)
+
+    # Check all the options
+    while argv and argv[0].startswith("-"):
+        # Detect Address family
+        if argv[0] == "-6":
+            af = 6
+            argv.pop(0)
+        elif argv[0] == "-4":
+            af = 4
+            argv.pop(0)
+        elif argv[0].startswith("-color"):
+            perror("iproute2mac: Color option is not implemented")
+            argv.pop(0)
+        elif "-Version".startswith(argv[0]):
+            print("iproute2mac, v" + VERSION)
+            exit(0)
+        elif "-help".startswith(argv[0]):
+            return False
+        else:
+            perror('Option "{}" is unknown, try "ip help".'.format(argv[0]))
+            exit(255)
 
     if not argv:
         return False
-
-    if argv[0] in ["-V", "-Version"]:
-        print("iproute2mac, v" + VERSION)
-        exit(0)
-
-    if argv[0] in ["-h", "-help"]:
-        return False
-
-    if argv[0].startswith("-"):
-        perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
-        exit(255)
 
     for cmd, cmd_func in cmds:
         if cmd.startswith(argv[0]):
