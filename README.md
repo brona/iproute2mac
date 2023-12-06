@@ -74,9 +74,14 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Supported Mac OS X versions (Tested)
 
-* macOS Monterey 12.6
+* macOS Sonoma 14.1.2
 
 ## Changelog
+
+**v1.4.2**
+* Ignores `-color` option (Issue #47, Thanks @lexhuismans)
+* Accepts double dashed options, e.g. `--color` as well as `-color`
+* `ip route add` ignores 2 additional arguments, e.g. `ip r a 1.1.1.1 via 2.2.2.2 dev utun5` is interpreted as `ip r a 1.1.1.1 via 2.2.2.2` (Issue #45)
 
 **v1.4.1**
 * Fixed `ip neigh show dev en0` (Issue #43, Thanks @SimonTate)
