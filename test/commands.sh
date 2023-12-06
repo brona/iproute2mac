@@ -12,6 +12,10 @@ ip_via=$ip_prefix.98
 
 $cmd -V
 
+$cmd --V
+
+$cmd -color=never -V
+
 ! $cmd help
 
 $cmd help 2>&1 >/dev/null | grep "Usage: ip "
@@ -27,6 +31,10 @@ $cmd help 2>&1 >/dev/null | grep "Usage: ip "
 $cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
 $cmd route show
+
+$cmd -4 route show
+
+$cmd -6 route show
 
 $cmd ro sho
 

@@ -21,7 +21,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
@@ -734,9 +734,10 @@ cmds = [
 def main(argv):
     af = -1  # default / both
 
-    # Check all the options
     while argv and argv[0].startswith("-"):
-        # Detect Address family
+        # Turn --opt into -opt
+        argv[0] = argv[0][1:] if argv[0][1] == "-" else argv[0]
+        # Process options
         if argv[0] == "-6":
             af = 6
             argv.pop(0)
