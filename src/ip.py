@@ -12,6 +12,8 @@
 """
 
 import ipaddress
+import json
+import os
 import random
 import re
 import socket
@@ -32,6 +34,9 @@ NDP = "/usr/sbin/ndp"
 ARP = "/usr/sbin/arp"
 NETWORKSETUP = "/usr/sbin/networksetup"
 
+# Globals
+json_print = False
+
 
 # Helper functions
 def perror(*args):
@@ -50,8 +55,14 @@ def execute_cmd(cmd):
         return False
 
 
+def json_dump(data):
+    print(json.dumps(data, separators=(",", ":")))
+
 # Classful to CIDR conversion
 def cidr_from_netstat_dst(target):
+    if target == "default":
+        return target
+
     dots = target.count(".")
     if target.find("/") == -1:
         addr = target
@@ -63,19 +74,9 @@ def cidr_from_netstat_dst(target):
     return addr + "/" + str(netmask)
 
 
-# Converts e.g. ffff0000 into /16
-# assumes valid netmask, counts set bits.
-# https://wiki.python.org/moin/BitManipulation#bitCount.28.29
-# Could be replaced with bin(netmask).count("1") or .bit_count() in Python 3.10
-# https://bugs.python.org/issue29882
-def addr_repl_netmask(matchobj):
-    hexmask = matchobj.group(1)
-    netmask = int(hexmask, 16)
-    cidr = 0
-    while netmask:
-        netmask &= netmask - 1
-        cidr += 1
-    return "/%d" % cidr
+# Convert hexadecimal netmask in prefix length
+def netmask_to_length(mask):
+    return str(bin(int(mask, 16))).count("1")
 
 
 def any_startswith(words, test):
@@ -123,6 +124,99 @@ def randomMAC():
         random.randint(0x00, 0xFF),
     ]
     return ":".join(["%02x" % x for x in mac])
+
+
+# Decode ifconfig output
+def parse_ifconfig(res, address):
+    links = []
+    ifindex = 1
+
+    for r in res.split("\n"):
+        if re.match(r"^\w+:", r):
+            if ifindex > 1:
+                links.append(link)
+            (ifname, flags, mtu) = re.findall(r"^(\w+): flags=\d+<(.*)> mtu (\d+)", r)[0]
+            flags = flags.split(",")
+            link = {
+                "ifindex": ifindex,
+                "ifname": ifname,
+                "flags": flags,
+                "mtu": mtu
+            }
+            if "LOOPBACK" in flags:
+                link["link_type"] = "loopback"
+                link["address"] = "00:00:00:00:00:00"
+                link["broadcast"] = "00:00:00:00:00:00"
+            elif "POINTOPOINT" in flags:
+                link["link_type"] = "none"
+            else:
+                link["link_type"] = "unknown"
+            ifindex = ifindex + 1
+        else:
+            if re.match(r"^\s+ether ", r):
+                link["link_type"] = "ether"
+                link["address"] = re.findall(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
+                link["broadcast"] = "ff:ff:ff:ff:ff:ff"
+            elif address and re.match(r"^\s+inet ", r):
+                (local, netmask) = re.findall(r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
+                addr = {
+                    "family": "inet",
+                    "local": local,
+                    "prefixlen": netmask_to_length(netmask),
+                }
+                if re.match(r"^.*broadcast", r):
+                    addr["broadcast"] = re.findall(r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
+                link["addr_info"] = link.get("addr_info", []) + [addr]
+            elif address and re.match(r"^\s+inet6 ", r):
+                (local, prefixlen) = re.findall(r"inet6 ([0-9a-f:]*::[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
+                link["addr_info"] = link.get("addr_info", []) + [{
+                  "family": "inet6",
+                  "local": local,
+                  "prefixlen": int(prefixlen)
+                }]
+
+    links.append(link)
+
+    return links
+
+
+def link_addr_show(argv, af, address):
+    if len(argv) > 0 and argv[0] == "dev":
+        argv.pop(0)
+    if len(argv) > 0:
+        param = argv[0]
+    else:
+        param = "-a"
+
+    status, res = subprocess.getstatusoutput(
+        IFCONFIG + " " + param + " 2>/dev/null"
+    )
+    if status:  # unix status
+        if res == "":
+            perror(param + " not found")
+        else:
+            perror(res)
+        return False
+
+    links = parse_ifconfig(res, address)
+
+    if json_print:
+        json_dump(links)
+    else:
+        for l in links:
+            print("%s: <%s> mtu %s" % (l["ifname"], ",".join(l["flags"]), l["mtu"]))
+            print(
+                "    link/" + l["link_type"] +
+                ((" " + l["address"]) if "address" in l else "") +
+                ((" brd " + l["broadcast"]) if "broadcast" in l else "")
+            )
+            for a in l.get("addr_info", []):
+                print(
+                    "    %s %s/%d" % (a["family"], a["local"], a["prefixlen"]) +
+                    ((" brd " + a["broadcast"]) if "broadcast" in a else "")
+                )
+
+    return True
 
 
 # Help
@@ -221,45 +315,41 @@ def do_route_list(af):
         return False
     res = res.split("\n")
     res = res[4:]  # Removes first 4 lines
+
+    routes = []
+
     for r in res:
         ra = r.split()
+        target = ra[0]
+        gw = ra[1]
+        flags = ra[2]
+        # macOS Mojave and earlier vs Catalina
+        dev = ra[5] if len(ra) >= 6 else ra[3]
+        if flags.find("W") != -1:
+            continue
         if af == 6:
-            target = ra[0]
-            gw = ra[1]
-            flags = ra[2]
-            dev = ra[3]
             target = re.sub(r"%[^ ]+/", "/", target)
-            if flags.find("W") != -1:
-                continue
-            if flags.find("B") != -1:
-                print("blackhole " + target)
-                continue
-            if re.match(r"link.+", gw):
-                print(target + " dev " + dev + "  scope link")
-            else:
-                print(target + " via " + gw + " dev " + dev)
         else:
-            target = ra[0]
-            gw = ra[1]
-            flags = ra[2]
-            # macOS Catalina
-            dev = ra[3]
-            if len(ra) >= 6:
-                # macOS Mojave and earlier
-                dev = ra[5]
-            if flags.find("W") != -1:
-                continue
-            if flags.find("B") != -1:
-                print("blackhole " + cidr_from_netstat_dst(target))
-                continue
-            if target == "default":
-                print("default via " + gw + " dev " + dev)
-            else:
-                cidr = cidr_from_netstat_dst(target)
-                if re.match(r"link.+", gw):
-                    print(cidr + " dev " + dev + "  scope link")
-                else:
-                    print(cidr + " via " + gw + " dev " + dev)
+            target = cidr_from_netstat_dst(target)
+        if flags.find("B") != -1:
+            routes.append({"type": "blackhole", "dst": target, "flags": []})
+            continue
+        if re.match(r"link.+", gw):
+            routes.append({"dst": target, "dev": dev, "scope": "link", "flags": []})
+        else:
+            routes.append({"dst": target, "gateway": gw, "dev": dev, "flags": []})
+
+    if json_print:
+        json_dump(routes)
+    else:
+        for route in routes:
+            if "type" in route:
+                print("%s %s" % (route["type"], route["dst"]))
+            elif "scope" in route:
+                print("%s dev %s scope %s" % (route["dst"], route["dev"], route["scope"]))
+            elif "gateway" in route:
+                print("%s via %s dev %s" % (route["dst"], route["gateway"], route["dev"]))
+
     return True
 
 
@@ -341,7 +431,6 @@ def do_route_get(argv, af):
 
     inet = ""
     if ":" in target or af == 6:
-        af = 6
         inet = "-inet6 "
         family = socket.AF_INET6
     else:
@@ -365,23 +454,34 @@ def do_route_get(argv, af):
         )
     )
 
-    route_to = res["route to"]
-    dev = res["interface"]
-    via = res.get("gateway", "")
+    route = {"dst": res["route to"], "dev": res["interface"]}
+
+    if "gateway" in res:
+        route["gateway"] = res["gateway"]
 
     try:
         s = socket.socket(family, socket.SOCK_DGRAM)
-        s.connect((route_to, 7))
-        src_ip = s.getsockname()[0]
+        s.connect((route["dst"], 7))
+        route["prefsrc"] = src_ip = s.getsockname()[0]
         s.close()
-        src = "  src " + src_ip
-    except Exception:
-        src = ""
+    except:
+        pass
 
-    if via == "":
-        print(route_to + " dev " + dev + src)
+    route["flags"] = []
+    route["uid"] = os.getuid()
+    route["cache"] = []
+
+    if json_print:
+        json_dump([route])
     else:
-        print(route_to + " via " + via + " dev " + dev + src)
+        print(
+            route["dst"] +
+            ((" via " + route["gateway"]) if "gateway" in route else "") +
+            " dev " + route["dev"] +
+            ((" src " + route["prefsrc"]) if "prefsrc" in route else "") +
+            " uid " + str(route["uid"])
+        )
+
     return True
 
 
@@ -406,57 +506,7 @@ def do_addr(argv, af):
 
 
 def do_addr_show(argv, af):
-    if len(argv) > 0 and argv[0] == "dev":
-        argv.pop(0)
-    if len(argv) > 0:
-        param = argv[0]
-    else:
-        param = "-a"
-
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " " + param + " 2>/dev/null"
-    )
-    if status:
-        if res == "":
-            perror(param + " not found")
-        else:
-            perror(res)
-        return False
-    res = re.sub(r"(%[^ ]+)? prefixlen ([\d+])", "/\\2", res)
-    res = re.sub(r" netmask 0x([0-9a-fA-F]+)", addr_repl_netmask, res)
-    res = re.sub(r"broadcast", "brd", res)
-
-    SIX = ""
-    if af == 6:
-        SIX = "6"
-    elif af == 4:
-        SIX = " "
-
-    address_count = 0
-    output = ""
-    buff = ""
-    ifname = ""
-    for r in res.split("\n"):
-        if re.match(r"^\w", r):
-            if address_count > 0:
-                output += buff
-            buff = ""
-            ifname = re.findall(r"^([^:]+): .+", r)[0]
-            address_count = 0
-            buff += r.rstrip() + "\n"
-        elif re.match(r"^\W+inet" + SIX + ".+", r):
-            address_count += 1
-            if re.match(r"^\W+inet .+", r):
-                buff += r.rstrip() + " " + ifname + "\n"
-            else:
-                buff += r.rstrip() + "\n"
-        elif re.match(r"^\W+ether.+", r):
-            buff += r.rstrip() + "\n"
-
-    if address_count > 0:
-        output += buff
-    print(output.rstrip())
-    return True
+    return link_addr_show(argv, af, True)
 
 
 def do_addr_add(argv, af):
@@ -525,26 +575,7 @@ def do_link(argv, af):
 
 
 def do_link_show(argv, af):
-    if len(argv) > 0 and argv[0] == "dev":
-        argv.pop(0)
-    if len(argv) > 0:
-        param = argv[0]
-    else:
-        param = "-a"
-
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " " + param + " 2>/dev/null"
-    )
-    if status:  # unix status
-        if res == "":
-            perror(param + " not found")
-        else:
-            perror(res)
-        return False
-    for r in res.split("\n"):
-        if not re.match(r"\s+inet.+", r):
-            print(r)
-    return True
+    return link_addr_show(argv, af, False)
 
 
 def do_link_set(argv, af):
@@ -648,14 +679,18 @@ def do_neigh_show(argv, af):
         )
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
-            entry = {}
-            entry["l3a"] = re.sub(r"%.+$", "", cols[0])
-            entry["l2a"] = cols[1] if cols[1] != "(incomplete)" else None
+            entry = {"dst": re.sub(r"%.+$", "", cols[0])}
+            if cols[1] != "(incomplete)":
+                entry["lladdr"] = cols[1]
             entry["dev"] = cols[2]
+            if dev and entry["dev"] != dev:
+                continue
+            if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
+                continue
             if cols[1] == "(incomplete)" and cols[4] != "R":
-                entry["status"] = "INCOMPLETE"
+                entry["status"] = ["INCOMPLETE"]
             else:
-                entry["status"] = nd_ll_states[cols[4]]
+                entry["status"] = [nd_ll_states[cols[4]]]
             entry["router"] = len(cols) >= 6 and cols[5] == "R"
             neighs.append(entry)
 
@@ -667,33 +702,31 @@ def do_neigh_show(argv, af):
         res = subprocess.run(args, capture_output=True, text=True, check=True)
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
-            entry = {}
-            entry["l3a"] = cols[0]
-            entry["l2a"] = cols[1] if cols[1] != "(incomplete)" else None
+            entry = {"dst": cols[0]}
+            if cols[1] != "(incomplete)":
+                entry["lladdr"] = cols[1]
             entry["dev"] = cols[4]
+            if dev and entry["dev"] != dev:
+                continue
+            if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
+                continue
             if cols[1] == "(incomplete)":
-                entry["status"] = "INCOMPLETE"
+                entry["status"] = ["INCOMPLETE"]
             else:
-                entry["status"] = "REACHABLE"
+                entry["status"] = ["REACHABLE"]
             entry["router"] = False
             neighs.append(entry)
 
-    for nb in neighs:
-        if dev and nb["dev"] != dev:
-            continue
-        if prefix and ipaddress.ip_address(nb["l3a"]) not in prefix:
-            continue
-
-        line = nb["l3a"]
-        if not dev:
-            line += " dev " + nb["dev"]
-        if nb["l2a"]:
-            line += " lladdr " + nb["l2a"]
-        if nb["router"]:
-            line += " router"
-        line += " " + nb["status"]
-
-        print(line)
+    if json_print:
+        json_dump(neighs)
+    else:
+        for nb in neighs:
+            print(
+                nb["dst"] +
+                ("", " dev " + nb["dev"], "")[dev == None] +
+                ("", " router")[nb["router"]] +
+                " %s" % (nb["status"][0])
+            )
 
     return True
 
@@ -732,6 +765,7 @@ cmds = [
 
 @help_msg("do_help")
 def main(argv):
+    global json_print
     af = -1  # default / both
 
     while argv and argv[0].startswith("-"):
@@ -746,6 +780,9 @@ def main(argv):
             argv.pop(0)
         elif argv[0].startswith("-color"):
             perror("iproute2mac: Color option is not implemented")
+            argv.pop(0)
+        elif "-json".startswith(argv[0]):
+            json_print = True
             argv.pop(0)
         elif "-Version".startswith(argv[0]):
             print("iproute2mac, v" + VERSION)
