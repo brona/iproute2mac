@@ -223,7 +223,7 @@ def link_addr_show(argv, af, address):
 def do_help(argv=None, af=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -V[ersion] |")
+    perror("       OPTIONS := { -V[ersion] | -j[son] |")
     perror("                    -4 | -6 }")
     perror("iproute2mac")
     perror("Homepage: https://github.com/brona/iproute2mac")

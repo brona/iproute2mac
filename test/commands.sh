@@ -106,5 +106,15 @@ $cmd nei show
 
 ! $cmd neigh asdf
 
-echo "Tests passed!!"
 
+## json output
+
+$cmd -j route show | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$cmd -j link show | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$cmd -j addr show | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$cmd -j neigh show | perl -MJSON -e 'decode_json(<STDIN>)'
+
+echo "Tests passed!!"

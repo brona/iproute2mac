@@ -71,6 +71,11 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * Add default route `ip route add default nexthop 10.0.0.1`
   * Replace static route `ip route replace 192.0.2.0/24 dev utun1`
   * Remove static route `ip route del 192.168.0.0/16`
+* JSON output
+  * List interfaces: `ip -j link show`
+  * List addresses: `ip -j addr show`
+  * List neighbours: `ip -j neigh show`
+  * List routes: `ip -j route show`
 
 ## Supported Mac OS X versions (Tested)
 
