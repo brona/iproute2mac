@@ -23,7 +23,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
@@ -143,7 +143,8 @@ def parse_ifconfig(res, af, address):
                 "ifname": ifname,
                 "flags": flags,
                 "mtu": int(mtu),
-                "operstate": "UNKNOWN"
+                "operstate": "UNKNOWN",
+                "link_type": "unknown"
             }
             if "LOOPBACK" in flags:
                 link["link_type"] = "loopback"
@@ -151,8 +152,6 @@ def parse_ifconfig(res, af, address):
                 link["broadcast"] = "00:00:00:00:00:00"
             elif "POINTOPOINT" in flags:
                 link["link_type"] = "none"
-            else:
-                link["link_type"] = "unknown"
             count = count + 1
         else:
             if re.match(r"^\s+ether ", r):
@@ -183,7 +182,8 @@ def parse_ifconfig(res, af, address):
                     case "inactive":
                         link["operstate"] = "DOWN"
 
-    links.append(link)
+    if count > 1:
+        links.append(link)
 
     return links
 

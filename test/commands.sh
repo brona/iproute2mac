@@ -3,118 +3,155 @@
 set -uex
 rundir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
 
-cmd="$rundir"/../src/ip.py
+ip_cmd="$rundir"/../src/ip.py
+bridge_cmd="$rundir"/../src/bridge.py
 ip_prefix=192.0.2
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
 
 # basics
 
-$cmd -V
+$ip_cmd -V
+$bridge_cmd -V
 
-$cmd --V
+$ip_cmd --V
+$bridge_cmd --V
 
-$cmd -color=never -V
+$ip_cmd -color=never -V
+$bridge_cmd -color=never -V
 
-! $cmd help
+! $ip_cmd help
+! $bridge_cmd help
 
-$cmd help 2>&1 >/dev/null | grep "Usage: ip "
+$ip_cmd help 2>&1 >/dev/null | grep "Usage: ip "
+$bridge_cmd help 2>&1 >/dev/null | grep "Usage: bridge "
 
-! $cmd asdf sh
+! $ip_cmd asdf sh
+! $bridge_cmd asdf sh
 
-! $cmd -M route sh
+! $ip_cmd -M route sh
+! $bridge_cmd -N link sh
 
 # route
 
-! $cmd route help
+! $ip_cmd route help
 
-$cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
+$ip_cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
-$cmd route show
+$ip_cmd route show
 
-$cmd -4 route show
+$ip_cmd -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
-$cmd -6 route show
+$ip_cmd -4 route show
 
-$cmd ro sho
+$ip_cmd -4 -j route show | perl -MJSON -e 'decode_json(<STDIN>)'
 
-$cmd r s
+$ip_cmd -4 -j -p route show | tee | grep '"dev": "lo0"'
 
-! $cmd r asdf
+$ip_cmd -6 route show
+
+$ip_cmd -6 -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$ip_cmd -j -p -6 route show | grep "fe80::/64"
+
+$ip_cmd ro sho
+
+$ip_cmd r s
+
+! $ip_cmd r asdf
 
 ## add/delete
 
-$cmd route add $ip_dest via $ip_via
+$ip_cmd route add $ip_dest via $ip_via
 netstat -anr | grep "$ip_dest" | grep "$ip_via"
 
-$cmd route delete $ip_dest via $ip_via
+$ip_cmd route delete $ip_dest via $ip_via
 ! netstat -anr | grep "$ip_dest"
 
-$cmd ro add $ip_dest via $ip_via
+$ip_cmd ro add $ip_dest via $ip_via
 netstat -anr | grep "$ip_dest" | grep "$ip_via"
 
-$cmd rou de $ip_dest via $ip_via
+$ip_cmd rou de $ip_dest via $ip_via
 ! netstat -anr | grep "$ip_dest"
 
 
 ## add/show/delete blackhole
 
-$cmd route add blackhole $ip_dest
+$ip_cmd route add blackhole $ip_dest
 netstat -anr | grep "$ip_dest" | grep "B"
 
-$cmd ro sh | grep -E "^blackhole $ip_dest"
+$ip_cmd ro sh | grep -E "^blackhole $ip_dest"
 
-$cmd route delete blackhole $ip_dest
+$ip_cmd route delete blackhole $ip_dest
 ! netstat -anr | grep "$ip_dest"
 
 # address
 
-$cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
+$ip_cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
 
-$cmd address show
+$ip_cmd address show
 
-$cmd ad sho
+$ip_cmd -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
-$cmd a s
+$ip_cmd -4 addr show
 
-! $cmd addr asdf
+$ip_cmd -4 -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$ip_cmd -4 -j -p addr show dev lo0 | grep '"local": "127.0.0.1"'
+
+$ip_cmd -6 addr show
+
+$ip_cmd -6 -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
+
+$ip_cmd -j -p -6 addr show dev lo0 | grep '"local": "::1"'
+
+$ip_cmd ad sho
+
+$ip_cmd a s
+
+! $ip_cmd addr asdf
 
 
 # link
 
-$cmd link help 2>&1 >/dev/null | grep "Usage: ip link"
+$ip_cmd link help 2>&1 >/dev/null | grep "Usage: ip link"
 
-$cmd lin hel 2>&1 >/dev/null | grep "Usage: ip link"
+$ip_cmd lin hel 2>&1 >/dev/null | grep "Usage: ip link"
 
-$cmd link show | grep mtu
+$ip_cmd link show | grep mtu
 
-$cmd li sho | grep mtu
+$ip_cmd -j link show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
-$cmd li ls | grep mtu
+$ip_cmd -j -p link show dev lo0 | grep '"link_type": "loopback"'
 
-$cmd lin lst | grep mtu
+$ip_cmd li sho | grep mtu
 
-$cmd l s | grep mtu
+$ip_cmd li ls | grep mtu
 
-! $cmd link asdf
+$ip_cmd lin lst | grep mtu
+
+$ip_cmd l s | grep mtu
+
+! $ip_cmd link asdf
 
 # neigh
 
-$cmd nei help 2>&1 >/dev/null | grep "Usage: ip neighbour"
+$ip_cmd nei help 2>&1 >/dev/null | grep "Usage: ip neighbour"
 
-$cmd nei show
+$ip_cmd nei show
 
-! $cmd neigh asdf
+$ip_cmd -j neigh show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
+$ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 
-## json output
+! $ip_cmd neigh asdf
 
-$cmd -j route show | perl -MJSON -e 'decode_json(<STDIN>)'
+# bridge
 
-$cmd -j link show | perl -MJSON -e 'decode_json(<STDIN>)'
+! $bridge_cmd help
 
-$cmd -j addr show | perl -MJSON -e 'decode_json(<STDIN>)'
+! $bridge_cmd link help 2>&1 >/dev/null | grep "Usage: bridge link"
 
-$cmd -j neigh show | perl -MJSON -e 'decode_json(<STDIN>)'
+$bridge_cmd link show
 
 echo "Tests passed!!"
