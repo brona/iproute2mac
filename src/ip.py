@@ -34,9 +34,6 @@ NDP = "/usr/sbin/ndp"
 ARP = "/usr/sbin/arp"
 NETWORKSETUP = "/usr/sbin/networksetup"
 
-# Globals
-json_print = False
-
 
 # Helper functions
 def perror(*args):
@@ -57,6 +54,7 @@ def execute_cmd(cmd):
 
 def json_dump(data):
     print(json.dumps(data, separators=(",", ":")))
+    return True
 
 # Classful to CIDR conversion with "default" being passed through
 def cidr_from_netstat_dst(target):
@@ -180,7 +178,7 @@ def parse_ifconfig(res, address):
     return links
 
 
-def link_addr_show(argv, af, address):
+def link_addr_show(argv, af, json_print, address):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -201,26 +199,26 @@ def link_addr_show(argv, af, address):
     links = parse_ifconfig(res, address)
 
     if json_print:
-        json_dump(links)
-    else:
-        for l in links:
-            print("%s: <%s> mtu %s" % (l["ifname"], ",".join(l["flags"]), l["mtu"]))
+        return json_dump(links)
+
+    for l in links:
+        print("%s: <%s> mtu %s" % (l["ifname"], ",".join(l["flags"]), l["mtu"]))
+        print(
+            "    link/" + l["link_type"] +
+            ((" " + l["address"]) if "address" in l else "") +
+            ((" brd " + l["broadcast"]) if "broadcast" in l else "")
+        )
+        for a in l.get("addr_info", []):
             print(
-                "    link/" + l["link_type"] +
-                ((" " + l["address"]) if "address" in l else "") +
-                ((" brd " + l["broadcast"]) if "broadcast" in l else "")
+                "    %s %s/%d" % (a["family"], a["local"], a["prefixlen"]) +
+                ((" brd " + a["broadcast"]) if "broadcast" in a else "")
             )
-            for a in l.get("addr_info", []):
-                print(
-                    "    %s %s/%d" % (a["family"], a["local"], a["prefixlen"]) +
-                    ((" brd " + a["broadcast"]) if "broadcast" in a else "")
-                )
 
     return True
 
 
 # Help
-def do_help(argv=None, af=None):
+def do_help(argv=None, af=None, json_print=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] |")
@@ -279,14 +277,14 @@ def do_help_neigh():
 
 # Route Module
 @help_msg("do_help_route")
-def do_route(argv, af):
+def do_route(argv, af, json_print):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
-        return do_route_list(af)
+        return do_route_list(af, json_print)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
-        return do_route_get(argv, af)
+        return do_route_get(argv, af, json_print)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_add(argv, af)
@@ -304,7 +302,7 @@ def do_route(argv, af):
     return True
 
 
-def do_route_list(af):
+def do_route_list(af, json_print):
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
     status, res = subprocess.getstatusoutput(
@@ -340,15 +338,15 @@ def do_route_list(af):
             routes.append({"dst": target, "gateway": gw, "dev": dev, "flags": []})
 
     if json_print:
-        json_dump(routes)
-    else:
-        for route in routes:
-            if "type" in route:
-                print("%s %s" % (route["type"], route["dst"]))
-            elif "scope" in route:
-                print("%s dev %s scope %s" % (route["dst"], route["dev"], route["scope"]))
-            elif "gateway" in route:
-                print("%s via %s dev %s" % (route["dst"], route["gateway"], route["dev"]))
+        return json_dump(routes)
+
+    for route in routes:
+        if "type" in route:
+            print("%s %s" % (route["type"], route["dst"]))
+        elif "scope" in route:
+            print("%s dev %s scope %s" % (route["dst"], route["dev"], route["scope"]))
+        elif "gateway" in route:
+            print("%s via %s dev %s" % (route["dst"], route["gateway"], route["dev"]))
 
     return True
 
@@ -426,7 +424,7 @@ def do_route_flush(argv, af):
         return False
 
 
-def do_route_get(argv, af):
+def do_route_get(argv, af, json_print):
     target = argv[0]
 
     inet = ""
@@ -472,28 +470,28 @@ def do_route_get(argv, af):
     route["cache"] = []
 
     if json_print:
-        json_dump([route])
-    else:
-        print(
-            route["dst"] +
-            ((" via " + route["gateway"]) if "gateway" in route else "") +
-            " dev " + route["dev"] +
-            ((" src " + route["prefsrc"]) if "prefsrc" in route else "") +
-            " uid " + str(route["uid"])
-        )
+        return json_dump([route])
+
+    print(
+        route["dst"] +
+        ((" via " + route["gateway"]) if "gateway" in route else "") +
+        " dev " + route["dev"] +
+        ((" src " + route["prefsrc"]) if "prefsrc" in route else "") +
+        " uid " + str(route["uid"])
+    )
 
     return True
 
 
 # Addr Module
 @help_msg("do_help_addr")
-def do_addr(argv, af):
+def do_addr(argv, af, json_print):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_addr_show(argv, af)
+        return do_addr_show(argv, af, json_print)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
@@ -505,8 +503,8 @@ def do_addr(argv, af):
     return True
 
 
-def do_addr_show(argv, af):
-    return link_addr_show(argv, af, True)
+def do_addr_show(argv, af, json_print):
+    return link_addr_show(argv, af, json_print, True)
 
 
 def do_addr_add(argv, af):
@@ -559,13 +557,13 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg("do_help_link")
-def do_link(argv, af):
+def do_link(argv, af, json_print):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, af)
+        return do_link_show(argv, af, json_print)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
@@ -574,8 +572,8 @@ def do_link(argv, af):
     return True
 
 
-def do_link_show(argv, af):
-    return link_addr_show(argv, af, False)
+def do_link_show(argv, af, json_print):
+    return link_addr_show(argv, af, json_print, False)
 
 
 def do_link_set(argv, af):
@@ -628,13 +626,13 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg("do_help_neigh")
-def do_neigh(argv, af):
+def do_neigh(argv, af, json_print):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
         argv.pop(0)
-        return do_neigh_show(argv, af)
+        return do_neigh_show(argv, af, json_print)
     elif "flush".startswith(argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
@@ -642,7 +640,7 @@ def do_neigh(argv, af):
         return False
 
 
-def do_neigh_show(argv, af):
+def do_neigh_show(argv, af, json_print):
     prefix = None
     dev = None
     try:
@@ -718,15 +716,15 @@ def do_neigh_show(argv, af):
             neighs.append(entry)
 
     if json_print:
-        json_dump(neighs)
-    else:
-        for nb in neighs:
-            print(
-                nb["dst"] +
-                ("", " dev " + nb["dev"], "")[dev == None] +
-                ("", " router")[nb["router"]] +
-                " %s" % (nb["status"][0])
-            )
+        return json_dump(neighs)
+
+    for nb in neighs:
+        print(
+            nb["dst"] +
+            ("", " dev " + nb["dev"], "")[dev == None] +
+            ("", " router")[nb["router"]] +
+            " %s" % (nb["status"][0])
+        )
 
     return True
 
@@ -765,8 +763,8 @@ cmds = [
 
 @help_msg("do_help")
 def main(argv):
-    global json_print
     af = -1  # default / both
+    json_print = False
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
@@ -801,7 +799,7 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af)
+            return cmd_func(argv, af, json_print)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)
