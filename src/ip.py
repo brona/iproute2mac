@@ -128,7 +128,7 @@ def randomMAC():
 
 
 # Decode ifconfig output
-def parse_ifconfig(res, address):
+def parse_ifconfig(res, af, address):
     links = []
     count = 1
 
@@ -159,7 +159,7 @@ def parse_ifconfig(res, address):
                 link["link_type"] = "ether"
                 link["address"] = re.findall(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
-            elif address and re.match(r"^\s+inet ", r):
+            elif address and re.match(r"^\s+inet ", r) and af != 6:
                 (local, netmask) = re.findall(r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
                 addr = {
                     "family": "inet",
@@ -169,7 +169,7 @@ def parse_ifconfig(res, address):
                 if re.match(r"^.*broadcast", r):
                     addr["broadcast"] = re.findall(r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [addr]
-            elif address and re.match(r"^\s+inet6 ", r):
+            elif address and re.match(r"^\s+inet6 ", r) and af != 4:
                 (local, prefixlen) = re.findall(r"inet6 ([0-9a-f:]*::[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [{
                   "family": "inet6",
@@ -206,7 +206,7 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
             perror(res)
         return False
 
-    links = parse_ifconfig(res, address)
+    links = parse_ifconfig(res, af, address)
 
     if json_print:
         return json_dump(links, pretty_json)
@@ -762,7 +762,7 @@ def do_neigh_flush(argv, af):
 
 
 # Match iproute2 commands
-# https://git.kernel.org/pub/scm/linux/kernel/git/shemminger/iproute2.git/tree/ip/ip.c#n75
+# https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/ip/ip.c#n86
 cmds = [
     ("address", do_addr),
     ("route", do_route),
