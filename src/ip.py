@@ -130,19 +130,20 @@ def randomMAC():
 # Decode ifconfig output
 def parse_ifconfig(res, address):
     links = []
-    ifindex = 1
+    count = 1
 
     for r in res.split("\n"):
         if re.match(r"^\w+:", r):
-            if ifindex > 1:
+            if count > 1:
                 links.append(link)
-            (ifname, flags, mtu) = re.findall(r"^(\w+): flags=\d+<(.*)> mtu (\d+)", r)[0]
+            (ifname, flags, mtu, ifindex) = re.findall(r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r)[0]
             flags = flags.split(",")
             link = {
-                "ifindex": ifindex,
+                "ifindex": int(ifindex),
                 "ifname": ifname,
                 "flags": flags,
-                "mtu": mtu
+                "mtu": int(mtu),
+                "operstate": "UNKNOWN"
             }
             if "LOOPBACK" in flags:
                 link["link_type"] = "loopback"
@@ -152,7 +153,7 @@ def parse_ifconfig(res, address):
                 link["link_type"] = "none"
             else:
                 link["link_type"] = "unknown"
-            ifindex = ifindex + 1
+            count = count + 1
         else:
             if re.match(r"^\s+ether ", r):
                 link["link_type"] = "ether"
@@ -175,6 +176,12 @@ def parse_ifconfig(res, address):
                   "local": local,
                   "prefixlen": int(prefixlen)
                 }]
+            elif re.match(r"^\s+status: ", r):
+                match re.findall(r"status: (\w+)", r)[0]:
+                    case "active":
+                        link["operstate"] = "UP"
+                    case "inactive":
+                        link["operstate"] = "DOWN"
 
     links.append(link)
 
@@ -190,7 +197,7 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
         param = "-a"
 
     status, res = subprocess.getstatusoutput(
-        IFCONFIG + " " + param + " 2>/dev/null"
+        IFCONFIG + " -v " + param + " 2>/dev/null"
     )
     if status:  # unix status
         if res == "":
@@ -205,7 +212,9 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
         return json_dump(links, pretty_json)
 
     for l in links:
-        print("%s: <%s> mtu %s" % (l["ifname"], ",".join(l["flags"]), l["mtu"]))
+        print("%d: %s: <%s> mtu %d status %s" % (
+            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"], l["operstate"]
+        ))
         print(
             "    link/" + l["link_type"] +
             ((" " + l["address"]) if "address" in l else "") +
