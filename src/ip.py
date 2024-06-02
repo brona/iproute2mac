@@ -52,8 +52,11 @@ def execute_cmd(cmd):
         return False
 
 
-def json_dump(data):
-    print(json.dumps(data, separators=(",", ":")))
+def json_dump(data, pretty):
+    if pretty:
+        print(json.dumps(data, indent=4))
+    else:
+        print(json.dumps(data, separators=(",", ":")))
     return True
 
 # Classful to CIDR conversion with "default" being passed through
@@ -178,7 +181,7 @@ def parse_ifconfig(res, address):
     return links
 
 
-def link_addr_show(argv, af, json_print, address):
+def link_addr_show(argv, af, json_print, pretty_json, address):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -199,7 +202,7 @@ def link_addr_show(argv, af, json_print, address):
     links = parse_ifconfig(res, address)
 
     if json_print:
-        return json_dump(links)
+        return json_dump(links, pretty_json)
 
     for l in links:
         print("%s: <%s> mtu %s" % (l["ifname"], ",".join(l["flags"]), l["mtu"]))
@@ -218,10 +221,10 @@ def link_addr_show(argv, af, json_print, address):
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None):
+def do_help(argv=None, af=None, json_print=None, pretty_json=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] |")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] |")
     perror("                    -4 | -6 }")
     perror("iproute2mac")
     perror("Homepage: https://github.com/brona/iproute2mac")
@@ -277,14 +280,14 @@ def do_help_neigh():
 
 # Route Module
 @help_msg("do_help_route")
-def do_route(argv, af, json_print):
+def do_route(argv, af, json_print, pretty_json):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
-        return do_route_list(af, json_print)
+        return do_route_list(af, json_print, pretty_json)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
-        return do_route_get(argv, af, json_print)
+        return do_route_get(argv, af, json_print, pretty_json)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_add(argv, af)
@@ -302,7 +305,7 @@ def do_route(argv, af, json_print):
     return True
 
 
-def do_route_list(af, json_print):
+def do_route_list(af, json_print, pretty_json):
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
     status, res = subprocess.getstatusoutput(
@@ -338,7 +341,7 @@ def do_route_list(af, json_print):
             routes.append({"dst": target, "gateway": gw, "dev": dev, "flags": []})
 
     if json_print:
-        return json_dump(routes)
+        return json_dump(routes, pretty_json)
 
     for route in routes:
         if "type" in route:
@@ -424,7 +427,7 @@ def do_route_flush(argv, af):
         return False
 
 
-def do_route_get(argv, af, json_print):
+def do_route_get(argv, af, json_print, pretty_json):
     target = argv[0]
 
     inet = ""
@@ -470,7 +473,7 @@ def do_route_get(argv, af, json_print):
     route["cache"] = []
 
     if json_print:
-        return json_dump([route])
+        return json_dump([route], pretty_json)
 
     print(
         route["dst"] +
@@ -485,13 +488,13 @@ def do_route_get(argv, af, json_print):
 
 # Addr Module
 @help_msg("do_help_addr")
-def do_addr(argv, af, json_print):
+def do_addr(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_addr_show(argv, af, json_print)
+        return do_addr_show(argv, af, json_print, pretty_json)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
@@ -503,8 +506,8 @@ def do_addr(argv, af, json_print):
     return True
 
 
-def do_addr_show(argv, af, json_print):
-    return link_addr_show(argv, af, json_print, True)
+def do_addr_show(argv, af, json_print, pretty_json):
+    return link_addr_show(argv, af, json_print, pretty_json, True)
 
 
 def do_addr_add(argv, af):
@@ -557,13 +560,13 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg("do_help_link")
-def do_link(argv, af, json_print):
+def do_link(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, af, json_print)
+        return do_link_show(argv, af, json_print, pretty_json)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
@@ -572,8 +575,8 @@ def do_link(argv, af, json_print):
     return True
 
 
-def do_link_show(argv, af, json_print):
-    return link_addr_show(argv, af, json_print, False)
+def do_link_show(argv, af, json_print, pretty_json):
+    return link_addr_show(argv, af, json_print, pretty_json, False)
 
 
 def do_link_set(argv, af):
@@ -626,13 +629,13 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg("do_help_neigh")
-def do_neigh(argv, af, json_print):
+def do_neigh(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
         argv.pop(0)
-        return do_neigh_show(argv, af, json_print)
+        return do_neigh_show(argv, af, json_print, pretty_json)
     elif "flush".startswith(argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
@@ -640,7 +643,7 @@ def do_neigh(argv, af, json_print):
         return False
 
 
-def do_neigh_show(argv, af, json_print):
+def do_neigh_show(argv, af, json_print, pretty_json):
     prefix = None
     dev = None
     try:
@@ -716,7 +719,7 @@ def do_neigh_show(argv, af, json_print):
             neighs.append(entry)
 
     if json_print:
-        return json_dump(neighs)
+        return json_dump(neighs, pretty_json)
 
     for nb in neighs:
         print(
@@ -765,6 +768,7 @@ cmds = [
 def main(argv):
     af = -1  # default / both
     json_print = False
+    pretty_json = False
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
@@ -781,6 +785,9 @@ def main(argv):
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
+            argv.pop(0)
+        elif "-pretty".startswith(argv[0]):
+            pretty_json = True
             argv.pop(0)
         elif "-Version".startswith(argv[0]):
             print("iproute2mac, v" + VERSION)
@@ -799,7 +806,7 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af, json_print)
+            return cmd_func(argv, af, json_print, pretty_json)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)
