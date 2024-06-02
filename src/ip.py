@@ -58,7 +58,7 @@ def execute_cmd(cmd):
 def json_dump(data):
     print(json.dumps(data, separators=(",", ":")))
 
-# Classful to CIDR conversion
+# Classful to CIDR conversion with "default" being passed through
 def cidr_from_netstat_dst(target):
     if target == "default":
         return target
