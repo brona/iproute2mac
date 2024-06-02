@@ -76,7 +76,7 @@ def cidr_from_netstat_dst(target):
 
 # Convert hexadecimal netmask in prefix length
 def netmask_to_length(mask):
-    return str(bin(int(mask, 16))).count("1")
+    return int(mask, 16).bit_count()
 
 
 def any_startswith(words, test):
