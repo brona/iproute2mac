@@ -49,6 +49,11 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * Set **Random MAC** address `ip link set en0 address random`
   * Set **Factory default MAC** address `ip link set en0 address factory`
   * Set MTU `ip link set dev en0 mtu 9000`
+  * Create VLAN inteface `ip link add link en0 name vlan111 type vlan id 111` (vlan interfaces must be named `vlan<n>`)
+  * Create a bridge interface `ip link add name bridge1 type bridge` (bridge interfaces must be named `bridge<n>`)
+  * Add an interface to a bridge `ip link set dev en2 master bridge1`
+  * Remove an interface from a bridge `ip link set dev en2 nomaster`
+  * Remove any virtual interface `ip link del vlan111`
 * Neighbour module (ARP/NDP)
   * Show all neighbours `ip neigh`
   * Show all IPv4 (ARP) neighbours `ip -4 neigh`
@@ -95,6 +100,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 **v1.5.0**
 * Added `-json` option (Issue #49)
 * Added `bridge` command
+* Added vlan management
 * Internal reworking of `ip ... show` functions
 
 **v1.4.2**

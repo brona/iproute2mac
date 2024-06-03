@@ -128,7 +128,15 @@ def randomMAC():
 
 
 # Decode ifconfig output
-def parse_ifconfig(res, af, address):
+def parse_ifconfig(af, address, details):
+    status, res = subprocess.getstatusoutput(
+        IFCONFIG + " -v -a 2>/dev/null"
+    )
+    if status:  # unix status
+        if res != "":
+            perror(res)
+        return None
+
     links = []
     count = 1
 
@@ -137,7 +145,7 @@ def parse_ifconfig(res, af, address):
             if count > 1:
                 links.append(link)
             (ifname, flags, mtu, ifindex) = re.findall(r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r)[0]
-            flags = flags.split(",")
+            flags = flags.split(",") if flags != "" else []
             link = {
                 "ifindex": int(ifindex),
                 "ifname": ifname,
@@ -159,12 +167,11 @@ def parse_ifconfig(res, af, address):
                 link["address"] = re.findall(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
-                (local, netmask) = re.findall(r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
-                addr = {
-                    "family": "inet",
-                    "local": local,
-                    "prefixlen": netmask_to_length(netmask),
-                }
+                (local, netmask) = re.findall(r"inet (\d+\.\d+\.\d+\.\d+).* netmask (0x[0-9a-f]+)", r)[0]
+                addr = { "family": "inet", "local": local }
+                if re.match(r"^.*-->", r):
+                    addr["address"] = re.findall(r"--> (\d+\.\d+\.\d+\.\d+)", r)[0]
+                addr["prefixlen"] = netmask_to_length(netmask)
                 if re.match(r"^.*broadcast", r):
                     addr["broadcast"] = re.findall(r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [addr]
@@ -181,6 +188,22 @@ def parse_ifconfig(res, af, address):
                         link["operstate"] = "UP"
                     case "inactive":
                         link["operstate"] = "DOWN"
+            elif re.match(r"^\s+vlan: ", r):
+                (vid, vlink) = re.findall(r"vlan: (\d+) parent interface: (<?\w+>?)", r)[0]
+                link["link"] = vlink
+                if details:
+                    link["linkinfo"] = {
+                        "info_kind": "vlan",
+                        "info_data": {
+                            "protocol": "802.1Q",
+                            "id": int(vid),
+                            "flags": []
+                        }
+                    }
+            elif re.match(r"^\s+member: ", r):
+                dev = re.findall(r"member: (\w+)", r)[0]
+                index = next((i for (i, l) in enumerate(links) if l["ifname"] == dev), None)
+                links[index]["master"] = ifname
 
     if count > 1:
         links.append(link)
@@ -188,41 +211,47 @@ def parse_ifconfig(res, af, address):
     return links
 
 
-def link_addr_show(argv, af, json_print, pretty_json, address):
+def link_addr_show(argv, af, details, json_print, pretty_json, address):
+    links = parse_ifconfig(af, address, details)
+    if links is None:
+        return False
+
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
-        param = argv[0]
-    else:
-        param = "-a"
-
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " -v " + param + " 2>/dev/null"
-    )
-    if status:  # unix status
-        if res == "":
-            perror(param + " not found")
-        else:
-            perror(res)
-        return False
-
-    links = parse_ifconfig(res, af, address)
+        dev = argv[0]
+        links = [l for l in links if l["ifname"] == dev]
+        if links == []:
+            perror("Device \"{}\" does not exist.".format(dev))
+            exit(1)
 
     if json_print:
         return json_dump(links, pretty_json)
 
     for l in links:
-        print("%d: %s: <%s> mtu %d status %s" % (
-            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"], l["operstate"]
+        dev = l["ifname"] + "@" + l["link"] if "link" in l else l["ifname"]
+        desc = "mtu {}".format(l["mtu"])
+        if "master" in l:
+            desc = "{} master {}".format(desc, l["master"])
+        desc = "{} state {}".format(desc, l["operstate"])
+        print("%d: %s: <%s> %s" % (
+            l["ifindex"], dev, ",".join(l["flags"]), desc
         ))
         print(
             "    link/" + l["link_type"] +
             ((" " + l["address"]) if "address" in l else "") +
             ((" brd " + l["broadcast"]) if "broadcast" in l else "")
         )
-        for a in l.get("addr_info", []):
+        if details and "linkinfo" in l:
+            i = l["linkinfo"]
             print(
-                "    %s %s/%d" % (a["family"], a["local"], a["prefixlen"]) +
+                "    %s protocol %s id %d" %
+                (i["info_kind"], i["info_data"]["protocol"], i["info_data"]["id"])
+            )
+        for a in l.get("addr_info", []):
+            address = "%s peer %s" % (a["local"], a["address"]) if "address" in a else a["local"]
+            print(
+                "    %s %s/%d" % (a["family"], address, a["prefixlen"]) +
                 ((" brd " + a["broadcast"]) if "broadcast" in a else "")
             )
 
@@ -230,10 +259,10 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None, pretty_json=None):
+def do_help(argv=None, af=None, details=None, json_print=None, pretty_json=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] |")
+    perror("       OPTIONS := { -V[ersion] | -d[etails] | -j[son] | -p[retty] |")
     perror("                    -4 | -6 }")
     perror("iproute2mac")
     perror("Homepage: https://github.com/brona/iproute2mac")
@@ -273,11 +302,14 @@ def do_help_addr():
 
 
 def do_help_link():
-    perror("Usage: ip link show [ DEVICE ]")
+    perror("Usage: ip link add [ link DEV ] [ name ] NAME type TYPE [ ARGS ]")
+    perror("       ip link delete DEVICE [ type TYPE ]")
+    perror("       ip link show [ DEVICE ]")
     perror("       ip link set dev DEVICE")
     perror("                [ { up | down } ]")
     perror("                [ address { LLADDR | factory | random } ]")
     perror("                [ mtu MTU ]")
+    perror("TYPE := { bridge | vlan }")
     exit(255)
 
 
@@ -289,14 +321,14 @@ def do_help_neigh():
 
 # Route Module
 @help_msg("do_help_route")
-def do_route(argv, af, json_print, pretty_json):
+def do_route(argv, af, details, json_print, pretty_json):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
-        return do_route_list(af, json_print, pretty_json)
+        return do_route_list(af, details, json_print, pretty_json)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
-        return do_route_get(argv, af, json_print, pretty_json)
+        return do_route_get(argv, af, details, json_print, pretty_json)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_add(argv, af)
@@ -314,7 +346,7 @@ def do_route(argv, af, json_print, pretty_json):
     return True
 
 
-def do_route_list(af, json_print, pretty_json):
+def do_route_list(af, details, json_print, pretty_json):
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
     status, res = subprocess.getstatusoutput(
@@ -436,7 +468,7 @@ def do_route_flush(argv, af):
         return False
 
 
-def do_route_get(argv, af, json_print, pretty_json):
+def do_route_get(argv, af, details, json_print, pretty_json):
     target = argv[0]
 
     inet = ""
@@ -497,13 +529,13 @@ def do_route_get(argv, af, json_print, pretty_json):
 
 # Addr Module
 @help_msg("do_help_addr")
-def do_addr(argv, af, json_print, pretty_json):
+def do_addr(argv, af, details, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_addr_show(argv, af, json_print, pretty_json)
+        return do_addr_show(argv, af, details, json_print, pretty_json)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
@@ -515,8 +547,8 @@ def do_addr(argv, af, json_print, pretty_json):
     return True
 
 
-def do_addr_show(argv, af, json_print, pretty_json):
-    return link_addr_show(argv, af, json_print, pretty_json, True)
+def do_addr_show(argv, af, details, json_print, pretty_json):
+    return link_addr_show(argv, af, details, json_print, pretty_json, True)
 
 
 def do_addr_add(argv, af):
@@ -569,13 +601,19 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg("do_help_link")
-def do_link(argv, af, json_print, pretty_json):
+def do_link(argv, af, details, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, af, json_print, pretty_json)
+        return do_link_show(argv, af, details, json_print, pretty_json)
+    elif "add".startswith(argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_link_add(argv, af)
+    elif "delete".startswith(argv[0]) and len(argv) >= 2:
+        argv.pop(0)
+        return do_link_del(argv, af)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
@@ -584,8 +622,66 @@ def do_link(argv, af, json_print, pretty_json):
     return True
 
 
-def do_link_show(argv, af, json_print, pretty_json):
-    return link_addr_show(argv, af, json_print, pretty_json, False)
+def do_link_show(argv, af, details, json_print, pretty_json):
+    return link_addr_show(argv, af, details, json_print, pretty_json, False)
+
+
+def do_link_add(argv, af):
+    ifname = None
+    link_type = None
+
+    while argv:
+        if argv[0] == "link":
+            argv.pop(0)
+            dev = argv.pop(0)
+        elif argv[0] == "name":
+            argv.pop(0)
+        elif argv[0] == "type":
+            argv.pop(0)
+            link_type = argv.pop(0)
+        elif argv[0] == "id":
+            if link_type != "vlan":
+                return False
+            argv.pop(0)
+            vlan_id = argv.pop(0)
+        else:
+            if ifname is not None:
+                return False
+            ifname = argv.pop(0)
+
+    if ifname is None:
+        return False
+
+    if link_type == "vlan":
+        if not vlan_id:
+            return False
+        if not execute_cmd(SUDO + " " + IFCONFIG + " " + ifname + " create"):
+            return False
+        return execute_cmd(
+            SUDO + " " + IFCONFIG + " " + ifname + " vlan " + vlan_id + " vlandev " + dev
+        )
+    elif link_type == "bridge":
+        return execute_cmd(
+            SUDO + " " + IFCONFIG + " " + ifname + " create"
+        )
+    else:
+        return False
+
+    return True
+
+
+def do_link_del(argv, af):
+    if not argv:
+        return False
+    elif argv[0] == "dev":
+        argv.pop(0)
+
+    if not argv:
+        return False
+
+    dev = argv.pop(0)
+
+    return execute_cmd(SUDO + " " + IFCONFIG + " " + dev + " destroy")
 
 
 def do_link_set(argv, af):
@@ -631,6 +727,21 @@ def do_link_set(argv, af):
                 mtu = int(next(args))
                 if not execute_cmd(IFCONFIG_DEV_CMD + " mtu " + str(mtu)):
                     return False
+            elif arg == "master":
+                master = next(args)
+                if not execute_cmd(SUDO + " " + IFCONFIG + " " + master + " addm " + dev):
+                    return False
+            elif arg == "nomaster":
+                links = parse_ifconfig(af, False, False)
+                index = next((i for (i, l) in enumerate(links) if l["ifname"] == dev), None)
+                if index is None:
+                    perror("Cannot find device \"{}\"".format(dev))
+                    exit(1)
+                if "master" in links[index]:
+                    bridge = links[index]["master"]
+                    if not execute_cmd(SUDO + " " + IFCONFIG + " " + bridge + " deletem " + dev):
+                        return False
+
     except Exception:
         return False
     return True
@@ -638,13 +749,13 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg("do_help_neigh")
-def do_neigh(argv, af, json_print, pretty_json):
+def do_neigh(argv, af, details, json_print, pretty_json):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
         argv.pop(0)
-        return do_neigh_show(argv, af, json_print, pretty_json)
+        return do_neigh_show(argv, af, details, json_print, pretty_json)
     elif "flush".startswith(argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
@@ -652,7 +763,7 @@ def do_neigh(argv, af, json_print, pretty_json):
         return False
 
 
-def do_neigh_show(argv, af, json_print, pretty_json):
+def do_neigh_show(argv, af, details, json_print, pretty_json):
     prefix = None
     dev = None
     try:
@@ -733,7 +844,7 @@ def do_neigh_show(argv, af, json_print, pretty_json):
     for nb in neighs:
         print(
             nb["dst"] +
-            ("", " dev " + nb["dev"], "")[dev == None] +
+            ("", " dev " + nb["dev"], "")[dev is None] +
             ("", " router")[nb["router"]] +
             " %s" % (nb["status"][0])
         )
@@ -776,6 +887,7 @@ cmds = [
 @help_msg("do_help")
 def main(argv):
     af = -1  # default / both
+    details = False
     json_print = False
     pretty_json = False
 
@@ -791,6 +903,9 @@ def main(argv):
             argv.pop(0)
         elif argv[0].startswith("-color"):
             perror("iproute2mac: Color option is not implemented")
+            argv.pop(0)
+        elif "-details".startswith(argv[0]):
+            details = True
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
@@ -815,7 +930,7 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af, json_print, pretty_json)
+            return cmd_func(argv, af, details, json_print, pretty_json)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)

@@ -105,7 +105,15 @@ def randomMAC():
 
 
 # Decode ifconfig output
-def parse_ifconfig(res):
+def parse_ifconfig():
+    status, res = subprocess.getstatusoutput(
+        IFCONFIG + " -v -a 2>/dev/null"
+    )
+    if status:  # unix status
+        if res != "":
+            perror(res)
+        return None
+
     links = []
     count = 1
 
@@ -224,28 +232,19 @@ def do_link(argv, json_print, pretty_json):
 
 
 def do_link_show(argv, json_print, pretty_json):
-    if len(argv) > 1:
-        if argv[0] != "dev":
-            return False
-        else:
-            argv.pop(0)
-    if len(argv) > 0:
-        dev = argv[0]
-    else:
-        dev = None
-
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " -v -a 2>/dev/null"
-    )
-    if status:  # unix status
-        if res == "":
-            perror(param + " not found")
-        else:
-            perror(res)
+    links = parse_ifconfig()
+    if links is None:
         return False
 
+    dev = None
     bridges = []
-    links = parse_ifconfig(res)
+
+    if len(argv) > 0 and argv[0] == "dev":
+        argv.pop(0)
+    if len(argv) > 0:
+        dev = argv[0]
+        if [l for l in links if l["ifname"] == dev] == []:
+            perror("Cannot find device \"{}\"".format(dev))
 
     for master in [l for l in links if "bridge" in l]:
         for slave in master["bridge"].get("members",[]):
