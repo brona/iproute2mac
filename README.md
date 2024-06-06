@@ -1,7 +1,7 @@
 iproute2mac
 ===========
 
-CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems - `ip` command.
+CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems - `ip` and `bridge` commands.
 
 Provided functionality is limited and command output is not fully compatible with [iproute2](http://www.policyrouting.org/iproute2.doc.html).
 
@@ -22,8 +22,10 @@ A) Using [Homebrew](http://brew.sh):
 B) Manual installation:
 
     $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
-    $ chmod +x ip.py
+    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/bridge.py
+    $ chmod +x ip.py bridge.py
     $ mv ip.py /usr/local/bin/ip
+    $ mv bridge.py /usr/local/bin/bridge
 
 
 ## Supported commands / Example usage
@@ -36,6 +38,8 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * `ip addr help`
   * `ip route help`
   * `ip neigh help`
+  * `bridge help`
+  * `bridge link help`
 * Link module (Interfaces)
   * List local interfaces `ip link`
   * Show one interface `ip link show en0`
@@ -71,12 +75,27 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * Add default route `ip route add default nexthop 10.0.0.1`
   * Replace static route `ip route replace 192.0.2.0/24 dev utun1`
   * Remove static route `ip route del 192.168.0.0/16`
+* Bridge module
+  * List bridge interfaces `bridge link`
+  * List one bridged interface `bridge link show dev en2`
+* JSON output
+  * List interfaces: `ip -j link show`
+  * List addresses: `ip -j addr show`
+  * List neighbours: `ip -j neigh show`
+  * List routes: `ip -j route show`
+  * List bridges (whith pretty print): `bridge -j -p link show`
 
 ## Supported Mac OS X versions (Tested)
 
 * macOS Sonoma 14.1.2
+* macOS Sonoma 14.5
 
 ## Changelog
+
+**v1.5.0**
+* Added `-json` option (Issue #49)
+* Added `bridge` command
+* Internal reworking of `ip ... show` functions
 
 **v1.4.2**
 * Ignores `-color` option (Issue #47, Thanks @lexhuismans)
