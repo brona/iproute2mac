@@ -2,12 +2,15 @@
 
 set -uex
 rundir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
+default_int=$(netstat -nr -f inet | awk '/default/{ print $4 }')
 
 ip_cmd="$rundir"/../src/ip.py
 bridge_cmd="$rundir"/../src/bridge.py
 ip_prefix=192.0.2
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
+vlan_id=777
+bridge_n=999
 
 # basics
 
@@ -153,5 +156,21 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 ! $bridge_cmd link help 2>&1 >/dev/null | grep "Usage: bridge link"
 
 $bridge_cmd link show
+
+$ip_cmd link add link $default_int name "vlan$vlan_id" type vlan id $vlan_id
+
+$ip_cmd addr add "$ip_dest" dev "vlan$vlan_id"
+
+netstat -anr | grep "$ip_dest" | grep "vlan$vlan_id"
+
+$ip_cmd link add "bridge$bridge_n" type bridge
+
+$ip_cmd link set dev "vlan$vlan_id" master "bridge$bridge_n"
+
+$bridge_cmd -j -p l s dev "vlan$vlan_id" | grep "master.*bridge$bridge_n"
+
+$ip_cmd link del "bridge$bridge_n"
+
+$ip_cmd link del "vlan$vlan_id"
 
 echo "Tests passed!!"
