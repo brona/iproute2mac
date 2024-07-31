@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf8
 
 
 """
@@ -11,120 +10,13 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
+from iproute2mac import *
 import ipaddress
-import json
 import os
-import random
 import re
 import socket
-import string
 import subprocess
 import sys
-import types
-
-# Version
-VERSION = "1.5.0"
-
-# Utilities
-SUDO = "/usr/bin/sudo"
-IFCONFIG = "/sbin/ifconfig"
-ROUTE = "/sbin/route"
-NETSTAT = "/usr/sbin/netstat"
-NDP = "/usr/sbin/ndp"
-ARP = "/usr/sbin/arp"
-NETWORKSETUP = "/usr/sbin/networksetup"
-
-
-# Helper functions
-def perror(*args):
-    sys.stderr.write(*args)
-    sys.stderr.write("\n")
-
-
-def execute_cmd(cmd):
-    print("Executing: %s" % cmd)
-    status, output = subprocess.getstatusoutput(cmd)
-    if status == 0:  # unix/linux commands 0 true, 1 false
-        print(output)
-        return True
-    else:
-        perror(output)
-        return False
-
-
-def json_dump(data, pretty):
-    if pretty:
-        print(json.dumps(data, indent=4))
-    else:
-        print(json.dumps(data, separators=(",", ":")))
-    return True
-
-# Classful to CIDR conversion with "default" being passed through
-def cidr_from_netstat_dst(target):
-    if target == "default":
-        return target
-
-    dots = target.count(".")
-    if target.find("/") == -1:
-        addr = target
-        netmask = (dots + 1) * 8
-    else:
-        [addr, netmask] = target.split("/")
-
-    addr = addr + ".0" * (3 - dots)
-    return addr + "/" + str(netmask)
-
-
-# Convert hexadecimal netmask in prefix length
-def netmask_to_length(mask):
-    return int(mask, 16).bit_count()
-
-
-def any_startswith(words, test):
-    for word in words:
-        if word.startswith(test):
-            return True
-    return False
-
-
-# Handles passsing return value, error messages and program exit on error
-def help_msg(help_func):
-    def wrapper(func):
-        def inner(*args, **kwargs):
-            if not func(*args, **kwargs):
-                specific = eval(help_func)
-                if specific:
-                    if isinstance(specific, types.FunctionType):
-                        if args and kwargs:
-                            specific(*args, **kwargs)
-                        else:
-                            specific()
-                        return False
-                    else:
-                        raise Exception("Function expected for: " + help_func)
-                else:
-                    raise Exception(
-                        "Function variant not defined: " + help_func
-                    )
-            return True
-
-        return inner
-
-    return wrapper
-
-
-# Generate random MAC address with XenSource Inc. OUI
-# http://www.linux-kvm.com/sites/default/files/macgen.py
-def randomMAC():
-    mac = [
-        0x00,
-        0x16,
-        0x3E,
-        random.randint(0x00, 0x7F),
-        random.randint(0x00, 0xFF),
-        random.randint(0x00, 0xFF),
-    ]
-    return ":".join(["%02x" % x for x in mac])
 
 
 # Decode ifconfig output
@@ -136,7 +28,8 @@ def parse_ifconfig(res, af, address):
         if re.match(r"^\w+:", r):
             if count > 1:
                 links.append(link)
-            (ifname, flags, mtu, ifindex) = re.findall(r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r)[0]
+            (ifname, flags, mtu, ifindex) = re.findall(
+                r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r)[0]
             flags = flags.split(",")
             link = {
                 "ifindex": int(ifindex),
@@ -156,20 +49,24 @@ def parse_ifconfig(res, af, address):
         else:
             if re.match(r"^\s+ether ", r):
                 link["link_type"] = "ether"
-                link["address"] = re.findall(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
+                link["address"] = re.findall(
+                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
-                (local, netmask) = re.findall(r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
+                (local, netmask) = re.findall(
+                    r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
                 addr = {
                     "family": "inet",
                     "local": local,
                     "prefixlen": netmask_to_length(netmask),
                 }
                 if re.match(r"^.*broadcast", r):
-                    addr["broadcast"] = re.findall(r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
+                    addr["broadcast"] = re.findall(
+                        r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
-                (local, prefixlen) = re.findall(r"inet6 ([0-9a-f:]*::[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
+                (local, prefixlen) = re.findall(
+                    r"inet6 ([0-9a-f:]*::[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [{
                   "family": "inet6",
                   "local": local,
@@ -213,7 +110,8 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
 
     for l in links:
         print("%d: %s: <%s> mtu %d status %s" % (
-            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"], l["operstate"]
+            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"],
+            l["operstate"]
         ))
         print(
             "    link/" + l["link_type"] +
@@ -235,20 +133,7 @@ def do_help(argv=None, af=None, json_print=None, pretty_json=None):
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] |")
     perror("                    -4 | -6 }")
-    perror("iproute2mac")
-    perror("Homepage: https://github.com/brona/iproute2mac")
-    perror(
-        "This is CLI wrapper for basic network utilities on Mac OS X"
-        " inspired with iproute2 on Linux systems."
-    )
-    perror(
-        "Provided functionality is limited and command output is not"
-        " fully compatible with iproute2."
-    )
-    perror(
-        "For advanced usage use netstat, ifconfig, ndp, arp, route "
-        " and networksetup directly."
-    )
+    perror(HELP_ADDENDUM)
     exit(255)
 
 
@@ -288,7 +173,7 @@ def do_help_neigh():
 
 
 # Route Module
-@help_msg("do_help_route")
+@help_msg(do_help_route)
 def do_route(argv, af, json_print, pretty_json):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
@@ -345,9 +230,11 @@ def do_route_list(af, json_print, pretty_json):
             routes.append({"type": "blackhole", "dst": target, "flags": []})
             continue
         if re.match(r"link.+", gw):
-            routes.append({"dst": target, "dev": dev, "scope": "link", "flags": []})
+            routes.append(
+                {"dst": target, "dev": dev, "scope": "link", "flags": []})
         else:
-            routes.append({"dst": target, "gateway": gw, "dev": dev, "flags": []})
+            routes.append(
+                {"dst": target, "gateway": gw, "dev": dev, "flags": []})
 
     if json_print:
         return json_dump(routes, pretty_json)
@@ -356,9 +243,11 @@ def do_route_list(af, json_print, pretty_json):
         if "type" in route:
             print("%s %s" % (route["type"], route["dst"]))
         elif "scope" in route:
-            print("%s dev %s scope %s" % (route["dst"], route["dev"], route["scope"]))
+            print("%s dev %s scope %s" % (
+                route["dst"], route["dev"], route["scope"]))
         elif "gateway" in route:
-            print("%s via %s dev %s" % (route["dst"], route["gateway"], route["dev"]))
+            print("%s via %s dev %s" % (
+                route["dst"], route["gateway"], route["dev"]))
 
     return True
 
@@ -378,9 +267,8 @@ def do_route_add(argv, af):
 
     if len(argv) == 5:
         perror(
-            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}".format(
-                argv[3], argv[4]
-            )
+            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}"
+            .format(argv[3], argv[4])
         )
 
     if argv[1] in ["via", "nexthop", "gw"]:
@@ -474,7 +362,7 @@ def do_route_get(argv, af, json_print, pretty_json):
         s.connect((route["dst"], 7))
         route["prefsrc"] = src_ip = s.getsockname()[0]
         s.close()
-    except:
+    except Exception:
         pass
 
     route["flags"] = []
@@ -496,7 +384,7 @@ def do_route_get(argv, af, json_print, pretty_json):
 
 
 # Addr Module
-@help_msg("do_help_addr")
+@help_msg(do_help_addr)
 def do_addr(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
@@ -568,7 +456,7 @@ def do_addr_del(argv, af):
 
 
 # Link module
-@help_msg("do_help_link")
+@help_msg(do_help_link)
 def do_link(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
@@ -637,7 +525,7 @@ def do_link_set(argv, af):
 
 
 # Neigh module
-@help_msg("do_help_neigh")
+@help_msg(do_help_neigh)
 def do_neigh(argv, af, json_print, pretty_json):
     if not argv:
         argv.append("show")
@@ -733,7 +621,7 @@ def do_neigh_show(argv, af, json_print, pretty_json):
     for nb in neighs:
         print(
             nb["dst"] +
-            ("", " dev " + nb["dev"], "")[dev == None] +
+            ("", " dev " + nb["dev"], "")[dev is None] +
             ("", " router")[nb["router"]] +
             " %s" % (nb["status"][0])
         )
@@ -773,7 +661,7 @@ cmds = [
 ]
 
 
-@help_msg("do_help")
+@help_msg(do_help)
 def main(argv):
     af = -1  # default / both
     json_print = False

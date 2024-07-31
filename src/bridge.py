@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf8
 
 
 """
@@ -11,97 +10,10 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
-import json
-import random
+from iproute2mac import *
 import re
-import string
 import subprocess
 import sys
-import types
-
-# Version
-VERSION = "1.5.0"
-
-# Utilities
-SUDO = "/usr/bin/sudo"
-IFCONFIG = "/sbin/ifconfig"
-ROUTE = "/sbin/route"
-NETSTAT = "/usr/sbin/netstat"
-NDP = "/usr/sbin/ndp"
-ARP = "/usr/sbin/arp"
-NETWORKSETUP = "/usr/sbin/networksetup"
-
-
-# Helper functions
-def perror(*args):
-    sys.stderr.write(*args)
-    sys.stderr.write("\n")
-
-
-def execute_cmd(cmd):
-    print("Executing: %s" % cmd)
-    status, output = subprocess.getstatusoutput(cmd)
-    if status == 0:  # unix/linux commands 0 true, 1 false
-        print(output)
-        return True
-    else:
-        perror(output)
-        return False
-
-
-def json_dump(data, pretty):
-    if pretty:
-        print(json.dumps(data, indent=4))
-    else:
-        print(json.dumps(data, separators=(",", ":")))
-    return True
-
-
-def any_startswith(words, test):
-    for word in words:
-        if word.startswith(test):
-            return True
-    return False
-
-
-# Handles passsing return value, error messages and program exit on error
-def help_msg(help_func):
-    def wrapper(func):
-        def inner(*args, **kwargs):
-            if not func(*args, **kwargs):
-                specific = eval(help_func)
-                if specific:
-                    if isinstance(specific, types.FunctionType):
-                        if args and kwargs:
-                            specific(*args, **kwargs)
-                        else:
-                            specific()
-                        return False
-                    else:
-                        raise Exception("Function expected for: " + help_func)
-                else:
-                    raise Exception(
-                        "Function variant not defined: " + help_func
-                    )
-            return True
-
-        return inner
-
-    return wrapper
-
-
-# Generate random MAC address with XenSource Inc. OUI
-# http://www.linux-kvm.com/sites/default/files/macgen.py
-def randomMAC():
-    mac = [
-        0x00,
-        0x16,
-        0x3E,
-        random.randint(0x00, 0x7F),
-        random.randint(0x00, 0xFF),
-        random.randint(0x00, 0xFF),
-    ]
-    return ":".join(["%02x" % x for x in mac])
 
 
 # Decode ifconfig output
@@ -135,7 +47,8 @@ def parse_ifconfig(res):
         else:
             if re.match(r"^\s+ether ", r):
                 link["link_type"] = "ether"
-                link["address"] = re.findall(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
+                link["address"] = re.findall(
+                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif re.match(r"^\s+status: ", r):
                 match re.findall(r"status: (\w+)", r)[0]:
@@ -145,8 +58,8 @@ def parse_ifconfig(res):
                         link["operstate"] = "DOWN"
             elif re.match(r"^\s+maxage ", r):
                 (maxage, holdcnt, proto, maxaddr, timeout) = re.findall(
-                    r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)", r
-                )[0]
+                    r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)",
+                    r)[0]
                 link["bridge"] = {
                     "maxage": int(maxage),
                     "holdcnt": int(holdcnt),
@@ -156,7 +69,8 @@ def parse_ifconfig(res):
                     "members": []
                 }
             elif re.match(r"^\s+member: ", r):
-                (ifname, flags) = re.findall(r"member: (\w+) flags=\d+<(.*)>", r)[0]
+                (ifname, flags) = re.findall(
+                    r"member: (\w+) flags=\d+<(.*)>", r)[0]
                 flags = flags.split(",")
                 link["bridge"]["members"].append({
                     "ifname": ifname,
@@ -164,8 +78,8 @@ def parse_ifconfig(res):
                 })
             elif re.match(r"^\s+ifmaxaddr ", r):
                 (ifmaxaddr, ifindex, priority, cost) = re.findall(
-                    r"ifmaxaddr (\d+) port (\d+) priority (\d+) path cost (\d+)", r
-                )[0]
+                    r"ifmaxaddr (\d+) port (\d+) priority (\d+) path cost (\d+)",
+                    r)[0]
                 link["bridge"]["members"][-1].update({
                     "ifmaxaddr": int(ifmaxaddr),
                     "ifindex": int(ifindex),
@@ -184,20 +98,7 @@ def do_help(argv=None, json_print=None, pretty_json=None):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] }")
-    perror("iproute2mac")
-    perror("Homepage: https://github.com/brona/iproute2mac")
-    perror(
-        "This is CLI wrapper for basic network utilities on Mac OS X"
-        " inspired with iproute2 on Linux systems."
-    )
-    perror(
-        "Provided functionality is limited and command output is not"
-        " fully compatible with iproute2."
-    )
-    perror(
-        "For advanced usage use netstat, ifconfig, ndp, arp, route "
-        " and networksetup directly."
-    )
+    perror(HELP_ADDENDUM)
     exit(255)
 
 
@@ -207,7 +108,7 @@ def do_help_link():
 
 
 # Link module
-@help_msg("do_help_link")
+@help_msg(do_help_link)
 def do_link(argv, json_print, pretty_json):
     if not argv:
         argv.append("show")
@@ -294,7 +195,7 @@ cmds = [
 ]
 
 
-@help_msg("do_help")
+@help_msg(do_help)
 def main(argv):
     json_print = False
     pretty_json = False
@@ -318,7 +219,8 @@ def main(argv):
         elif "-help".startswith(argv[0]):
             return False
         else:
-            perror('Option "{}" is unknown, try "bridge help".'.format(argv[0]))
+            perror('Option "{}" is unknown, try "bridge help".'.format(
+                argv[0]))
             exit(255)
 
     if not argv:
