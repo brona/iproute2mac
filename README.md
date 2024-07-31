@@ -23,7 +23,9 @@ B) Manual installation:
 
     $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
     $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/bridge.py
+    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/iproute2mac.py
     $ chmod +x ip.py bridge.py
+    $ mv iproute2mac.py /usr/local/bin/iproute2mac.py
     $ mv ip.py /usr/local/bin/ip
     $ mv bridge.py /usr/local/bin/bridge
 
