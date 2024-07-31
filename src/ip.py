@@ -54,7 +54,7 @@ def parse_ifconfig(res, af, address):
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
                 (local, netmask) = re.findall(
-                    r"inet (\d+\.\d+\.\d+\.\d+) netmask (0x[0-9a-f]+)", r)[0]
+                    r"inet (\d+\.\d+\.\d+\.\d+) .*netmask (0x[0-9a-f]+)", r)[0]
                 addr = {
                     "family": "inet",
                     "local": local,
