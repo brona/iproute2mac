@@ -66,7 +66,7 @@ def parse_ifconfig(res, af, address):
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
                 (local, prefixlen) = re.findall(
-                    r"inet6 ([0-9a-f:]*::[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
+                    r"inet6 ([0-9a-f:]*:[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [{
                   "family": "inet6",
                   "local": local,
