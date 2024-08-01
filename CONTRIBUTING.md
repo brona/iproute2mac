@@ -30,7 +30,7 @@ To have it permanently add the above command to your `~/.zshrc` or `~/.bashrc` f
 
 Unfortunately we do not have unit tests or any integration tests with reasonable coverage. This makes contributions quite risky. We effectively parse output of other binaries like `ifconfig` and thus the overall approach is quite fragile. Not even mentioning that there might be changes of behaviour between macOS versions.
 
-1. Manual testing on your machine is the first step, we have [tests/commands.sh](./tests/commands.sh) script, which has couple standard use-cases and tests for exit codes. However you need to check correctness yourself.
+1. Manual testing on your machine is the first step, we have [test/commands.sh](./test/commands.sh) script, which has couple standard use-cases and tests for exit codes. However you need to check correctness yourself.
     * This script should pass for every pull request and release.
     * If you add new commands please extend the test file.
 2. [BrewTestBot](https://docs.brew.sh/BrewTestBot) runs the tests on multiple platforms (See example [here](https://github.com/Homebrew/homebrew-core/pull/179084)) during update of our Homebrew formula.
@@ -57,7 +57,7 @@ If you are doing bigger changes to the Homebrew formula, you need to fork and br
 
 1) Small pull requests with a single feature are preferred.
 
-2) Your Pull Request should include necessary changes to [tests/commands.sh](./tests/commands.sh) and [./README.md](./README.md).
+2) Your Pull Request should include necessary changes to [test/commands.sh](./test/commands.sh) and [./README.md](./README.md).
 
 3) Please add reasonable commit messages.
 
