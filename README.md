@@ -9,26 +9,26 @@ Goal of this project is to make basic network configuration/debug tasks on Mac O
 
 For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `networksetup` directly.
 
+If you are interested in contributing, please see our [Contribution Guidelines](./CONTRIBUTING.md).
+
 ## Installation
 
-A) Using [Homebrew](http://brew.sh):
+A) [Preferred] Using [Homebrew](http://brew.sh):
 
-    # [Optional] Install Homebrew first - see http://brew.sh for more options
-    $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    # [Optional] Install Homebrew first, see http://brew.sh for options
+    $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
     # Install iproute2mac
     $ brew install iproute2mac
 
-B) Manual installation:
+B) Manual installation from HEAD:
 
-    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/ip.py
-    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/bridge.py
-    $ curl --remote-name -L https://github.com/brona/iproute2mac/raw/master/src/iproute2mac.py
-    $ chmod +x ip.py bridge.py
-    $ mv iproute2mac.py /usr/local/bin/iproute2mac.py
-    $ mv ip.py /usr/local/bin/ip
-    $ mv bridge.py /usr/local/bin/bridge
-
+    $ sudo mkdir /usr/local/iproute2mac
+    $ sudo chown -R $(whoami):admin /usr/local/iproute2mac
+    $ cd /usr/local/
+    $ git clone https://github.com/brona/iproute2mac.git
+    $ ln -s iproute2mac/src/ip.py /usr/local/bin/ip
+    $ ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
 
 ## Supported commands / Example usage
 
@@ -87,7 +87,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * List routes: `ip -j route show`
   * List bridges (whith pretty print): `bridge -j -p link show`
 
-## Supported Mac OS X versions (Tested)
+## Supported Mac OS X versions
 
 * macOS Sonoma 14.5
 
