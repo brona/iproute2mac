@@ -87,10 +87,6 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * List routes: `ip -j route show`
   * List bridges (whith pretty print): `bridge -j -p link show`
 
-## Supported Mac OS X versions
-
-* macOS Sonoma 14.5
-
 ## Changelog
 
 **v1.5.0**
