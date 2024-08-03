@@ -16,7 +16,7 @@ The secondary goal is to provide a compatibility layer for scripting - to allow 
 
 The last goal is to optionally provide quality of life enhancements and convenience features to the existing `ip` commands which are meaningful to iproute2mac users. For example we have `ip link set en0 address random` and `ip link set en0 address factory`, which do not have equivalents in iproute2.
 
-**When porting features from iproute2 to iproute2mac, the general principle should be predictable and fail-safe behaviour.** Existing with "Not implemented", is preferred over dummy or made-up information being provided, or quietly dropping unimplemented options or commands. We shouldn't confuse our clients or create any inconsistencies. Practically, if the underlying Linux/macOS stacks differ too much, the script should terminate with error code rather than pretend it works or implement some hacky band aid type solution.
+**When porting features from iproute2 to iproute2mac, the general principle should be predictable and fail-safe behaviour.** Exiting with "Not implemented", is preferred over dummy or made-up information being provided, or quietly dropping unimplemented options or commands. We shouldn't confuse our clients or create any inconsistencies. Practically, if the underlying Linux/macOS stacks differ too much, the script should terminate with error code rather than pretend it works or implement some hacky band aid type solution.
 
 ## Developer Setup
 To test your code it can be useful to create an alias with the following command in your terminal:
@@ -36,7 +36,7 @@ Unfortunately we do not have unit tests or any integration tests with reasonable
 2. [BrewTestBot](https://docs.brew.sh/BrewTestBot) runs the tests on multiple platforms (See example [here](https://github.com/Homebrew/homebrew-core/pull/179084)) during update of our Homebrew formula.
     *  During every release, it runs commands defined [here](https://github.com/Homebrew/homebrew-core/blob/master/Formula/i/iproute2mac.rb#L25) and checks for non-error exit codes.
 
-**Any contributions refactoring the code and adding more comprehensive tests would be very welcome**. generally we should aim to capture several sample real outputs of `ifconfig` and `netstat` on macOS and store the expected Linux-like output. Then we would feed the sample output into iproute2mac to mock the real CLI execution and compare the outputs. For commands that modify the stack, we should store the expected CLI command that is begin executed.
+**Any contributions refactoring the code and adding more comprehensive tests would be very welcome**. Generally we should aim to capture several sample real outputs of `ifconfig` and `netstat` on macOS and store the expected Linux-like output. Then we would feed the sample output into iproute2mac to mock the real CLI execution and compare the outputs. For commands that modify the stack, we should store the expected CLI command that is begin executed.
 
 ## Homebrew formula
 
