@@ -29,7 +29,7 @@ def parse_ifconfig(res, af, address):
             if count > 1:
                 links.append(link)
             (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r)[0]
+                r"^(\w+): flags=[\da-f]+<(.*)> mtu (\d+) index (\d+)", r)[0]
             flags = flags.split(",")
             link = {
                 "ifindex": int(ifindex),
@@ -54,7 +54,7 @@ def parse_ifconfig(res, af, address):
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
                 (local, netmask) = re.findall(
-                    r"inet (\d+\.\d+\.\d+\.\d+) .*netmask (0x[0-9a-f]+)", r)[0]
+                    r"inet (\d+\.\d+\.\d+\.\d+) .*netmask (0x[\da-f]+)", r)[0]
                 addr = {
                     "family": "inet",
                     "local": local,
@@ -66,7 +66,7 @@ def parse_ifconfig(res, af, address):
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
                 (local, prefixlen) = re.findall(
-                    r"inet6 ([0-9a-f:]*:[0-9a-f:]+)%*\w* prefixlen (\d+)", r)[0]
+                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w* prefixlen (\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [{
                   "family": "inet6",
                   "local": local,

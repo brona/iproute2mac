@@ -26,7 +26,7 @@ def parse_ifconfig(res):
             if count > 1:
                 links.append(link)
             (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=\d+<(.*)> mtu (\d+) index (\d+)", r
+                r"^(\w+): flags=[\da-f]+<(.*)> mtu (\d+) index (\d+)", r
             )[0]
             flags = flags.split(",")
             link = {
@@ -70,7 +70,7 @@ def parse_ifconfig(res):
                 }
             elif re.match(r"^\s+member: ", r):
                 (ifname, flags) = re.findall(
-                    r"member: (\w+) flags=\d+<(.*)>", r)[0]
+                    r"member: (\w+) flags=[\da-f]+<(.*)>", r)[0]
                 flags = flags.split(",")
                 link["bridge"]["members"].append({
                     "ifname": ifname,
