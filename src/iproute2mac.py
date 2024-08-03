@@ -18,7 +18,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
