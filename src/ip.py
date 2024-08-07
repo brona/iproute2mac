@@ -29,7 +29,7 @@ def parse_ifconfig(res, af, address):
             if count > 1:
                 links.append(link)
             (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=[\da-f]+<(.*)> mtu (\d+) index (\d+)", r)[0]
+                r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r)[0]
             flags = flags.split(",")
             link = {
                 "ifindex": int(ifindex),
