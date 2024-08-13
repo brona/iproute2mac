@@ -10,13 +10,15 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
 from iproute2mac import *
 import ipaddress
-import os
 import re
 import socket
 import subprocess
-import sys
 
 
 # Decode ifconfig output
