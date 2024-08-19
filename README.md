@@ -89,6 +89,9 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Changelog
 
+**v1.5.3**
+* Fixing #21 `--color` option parsing
+
 **v1.5.2**
 * Fixing #57
 
