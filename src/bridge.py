@@ -204,7 +204,7 @@ def main(argv):
         # Turn --opt into -opt
         argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
-        elif "-color".startswith(argv[0].split("=")[0]):
+        if "-color".startswith(argv[0].split("=")[0]):
             if "never" not in argv[0].split("="):
                 perror("iproute2mac: Color option is not implemented")
             argv.pop(0)
