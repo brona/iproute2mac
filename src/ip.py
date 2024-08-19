@@ -131,7 +131,7 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
 def do_help(argv=None, af=None, json_print=None, pretty_json=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] |")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
     perror("                    -4 | -6 }")
     perror(HELP_ADDENDUM)
     exit(255)
@@ -669,7 +669,7 @@ def main(argv):
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
-        argv[0] = argv[0][1:] if argv[0][1] == "-" else argv[0]
+        argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
         if argv[0] == "-6":
             af = 6
@@ -677,8 +677,9 @@ def main(argv):
         elif argv[0] == "-4":
             af = 4
             argv.pop(0)
-        elif argv[0].startswith("-color"):
-            perror("iproute2mac: Color option is not implemented")
+        elif "-color".startswith(argv[0].split("=")[0]):
+            if "never" not in argv[0].split("="):
+                perror("iproute2mac: Color option is not implemented")
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True

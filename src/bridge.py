@@ -97,7 +97,7 @@ def parse_ifconfig(res):
 def do_help(argv=None, json_print=None, pretty_json=None):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] }")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] }")
     perror(HELP_ADDENDUM)
     exit(255)
 
@@ -202,10 +202,11 @@ def main(argv):
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
-        argv[0] = argv[0][1:] if argv[0][1] == "-" else argv[0]
+        argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
-        if argv[0].startswith("-color"):
-            perror("iproute2mac: Color option is not implemented")
+        elif "-color".startswith(argv[0].split("=")[0]):
+            if "never" not in argv[0].split("="):
+                perror("iproute2mac: Color option is not implemented")
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
