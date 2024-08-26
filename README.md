@@ -1,11 +1,11 @@
 iproute2mac
 ===========
 
-CLI wrapper for basic network utilities on Mac OS X inspired by iproute2 on Linux systems - `ip` and `bridge` commands.
+CLI wrapper for basic network utilities on macOS inspired by iproute2 on Linux systems - `ip` and `bridge` commands.
 
 Provided functionality is limited and command output is not fully compatible with [iproute2](http://www.policyrouting.org/iproute2.doc.html).
 
-Goal of this project is to make basic network configuration/debug tasks on Mac OS X easy for admins who already use Linux systems.
+Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.
 
 For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `networksetup` directly.
 
@@ -124,7 +124,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 * Migrated to Python 3
 
 **v1.2.3**
-* Fixed `ip route` for Mac OS X Catalina (Thanks @jiegec)
+* Fixed `ip route` for macOS Catalina (Thanks @jiegec)
 * `ip route` now returns host addresses (Thanks @crvv)
 * Added `ip route flush cache` (Thanks @npeters)
 * Added `ip route replace 192.0.2.0/24 dev utun1` (Thanks @npeters)
