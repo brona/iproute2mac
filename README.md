@@ -1,7 +1,7 @@
 iproute2mac
 ===========
 
-CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems - `ip` and `bridge` commands.
+CLI wrapper for basic network utilities on Mac OS X inspired by iproute2 on Linux systems - `ip` and `bridge` commands.
 
 Provided functionality is limited and command output is not fully compatible with [iproute2](http://www.policyrouting.org/iproute2.doc.html).
 
@@ -66,7 +66,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * List IPv4 addresses `ip -4 addr`
   * List IPv6 addresses `ip -6 addr`
   * Add address to interface `ip addr add 10.0.0.5/24 dev en0`
-  * Remove address to interface `ip addr del 10.0.0.5 dev en0`
+  * Remove address from interface `ip addr del 10.0.0.5 dev en0`
 * Route module
   * List IPv4 addresses `ip route`
   * List IPv6 addresses `ip -6 route`
@@ -85,7 +85,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
   * List addresses: `ip -j addr show`
   * List neighbours: `ip -j neigh show`
   * List routes: `ip -j route show`
-  * List bridges (whith pretty print): `bridge -j -p link show`
+  * List bridges (with pretty print): `bridge -j -p link show`
 
 ## Changelog
 
@@ -141,7 +141,7 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 **v1.2.0**
 * Enhanced input parsing to support arbitrary length commands (Thanks @deployable)
 * Simple test script added (Thanks @deployable)
-* Fixed error return codes to simulate iproute2 (At this moment help messages are inconsistently printed to stderr for all errors unlinke iproute2 behaviour)
+* Fixed error return codes to simulate iproute2 (At this moment help messages are inconsistently printed to stderr for all errors unlike iproute2 behaviour)
 
 **v1.1.2**
 * Correctly show `src` for `ip route get` on IPv6 addresses (Thanks @codeaholics)
