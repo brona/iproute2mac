@@ -1,12 +1,10 @@
 iproute2mac
 ===========
 
-CLI wrapper for basic network utilities on macOS inspired by iproute2 on Linux systems - `ip` and `bridge` commands.
+*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip` and `bridge` commands*
 
-Provided functionality is limited and command output is not fully compatible with [iproute2](http://www.policyrouting.org/iproute2.doc.html).
-
-Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.
-
+Provided functionality is limited and command output is not fully compatible with [iproute2].\
+Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.\
 For advanced usage use `netstat`, `ifconfig`, `ndp`, `arp`, `route` and `networksetup` directly.
 
 If you are interested in contributing, please see our [Contribution Guidelines](./CONTRIBUTING.md).
@@ -15,24 +13,28 @@ If you are interested in contributing, please see our [Contribution Guidelines](
 
 A) [Preferred] Using [Homebrew](http://brew.sh):
 
-    # [Optional] Install Homebrew first, see http://brew.sh for options
-    $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```bash
+# [Optional] Install Homebrew first, see http://brew.sh for options
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-    # Install iproute2mac
-    $ brew install iproute2mac
+# Install iproute2mac
+brew install iproute2mac
+```
 
 B) Manual installation from HEAD:
 
-    $ sudo mkdir /usr/local/iproute2mac
-    $ sudo chown -R $(whoami):admin /usr/local/iproute2mac
-    $ cd /usr/local/
-    $ git clone https://github.com/brona/iproute2mac.git
-    $ ln -s iproute2mac/src/ip.py /usr/local/bin/ip
-    $ ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
+```bash
+sudo mkdir /usr/local/iproute2mac
+sudo chown -R $(whoami):admin /usr/local/iproute2mac
+cd /usr/local/
+git clone https://github.com/brona/iproute2mac.git
+ln -s iproute2mac/src/ip.py /usr/local/bin/ip
+ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
+```
 
 ## Supported commands / Example usage
 
-Goal of this utility is to provide compatible CLI with [iproute2](http://www.policyrouting.org/iproute2.doc.html), supporting same command shortcuts and user experience.
+Goal of this utility is to provide compatible CLI with [iproute2], supporting same command shortcuts and user experience.
 
 * Help
   * `ip help`
@@ -89,98 +91,207 @@ Goal of this utility is to provide compatible CLI with [iproute2](http://www.pol
 
 ## Changelog
 
-**v1.5.3**
-* Fixed #21 `--color` option parsing
+<details open>
+  <summary><b>v1.5.3</b></summary>
 
-**v1.5.2**
-* Fixed #57
+- Fixed https://github.com/brona/iproute2mac/issues/21 `--color` option parsing
 
-**v1.5.1**
-* Fixed #56
+</details>
 
-**v1.5.0**
-* Added `-json` option (issue #49)
-* Added `bridge` command
-* Internal reworking of `ip ... show` functions
+<details open>
+  <summary><b>v1.5.2</b></summary>
 
-**v1.4.2**
-* `-color` option is now being ignored (issue #47, thanks @lexhuismans)
-* Added support for double dashed options, e.g. `--color` as well as `-color`
-* `ip route add` now ignores 2 additional arguments, e.g. `ip r a 1.1.1.1 via 2.2.2.2 dev utun5` is interpreted as `ip r a 1.1.1.1 via 2.2.2.2` (issue #45)
+- Fixed https://github.com/brona/iproute2mac/issues/57
 
-**v1.4.1**
-* Fixed `ip neigh show dev en0` (issue #43, thanks @SimonTate)
+</details>
 
-**v1.4.0**
-* Internal cleanup and code style changes
-* Added support for blackhole routes `ip route add blackhole 192.0.2.0/24` (thanks @mhio)
-* :warning: `ip route flush cache` no longer flushes anything
-* `ip route flush table main` flushes all routes
-* `ip neigh show 192.0.2.0/24` filters neighbours
-* Flag compatibility for `-help` and `-Version`
-* Uniform matching for show command alternatives
+<details open>
+  <summary><b>v1.5.1</b></summary>
 
-**v1.3.0**
-* Migrated to Python 3
+- Fixed https://github.com/brona/iproute2mac/issues/56
 
-**v1.2.3**
-* Fixed issues with `ip route` on macOS Catalina (thanks @jiegec)
-* `ip route` now returns host addresses (thanks @crvv)
-* Added `ip route flush cache` (thanks @npeters)
-* Added `ip route replace 192.0.2.0/24 dev utun1` (thanks @npeters)
-* Added `ip addr add 192.0.2.1/32 peer 192.0.2.1 dev utun1` (thanks @npeters)
+</details>
 
-**v1.2.2**
-* Fixed argument handling while using `ip -4` (thanks @bsholdice)
-* Fixed `ip help` (thanks @KireinaHoro)
+<details open>
+  <summary><b>v1.5.0</b></summary>
 
-**v1.2.1**
-* Fixed error return codes and test script
-* `ip neigh flush` now requires specific device (consistent behaviour with iproute2)
+- Added `-json` option
+  (https://github.com/brona/iproute2mac/issues/49)
+- Added `bridge` command
+- Internal reworking of `ip ... show` functions
 
-**v1.2.0**
-* Enhanced input parsing to support arbitrary length commands (thanks @deployable)
-* Added simple test script (thanks @deployable)
-* Fixed error return codes to simulate iproute2 (currently, help messages are inconsistently printed to stderr for all errors, unlike in iproute2)
+</details>
 
-**v1.1.2**
-* `ip route get` now correctly shows `src` for IPv6 addresses (thanks @codeaholics)
+<details>
+  <summary><b>v1.4.2</b></summary>
 
-**v1.1.1**
-* Added `dev` option to `ip route add` command (thanks @ThangCZ)
+- `-color` option is now being ignored
+  (https://github.com/brona/iproute2mac/issues/47, thanks [@lexhuismans](https://github.com/lexhuismans))
+- Added support for double dashed options,\
+  e.g. `--color` as well as `-color`
+- `ip route add` now ignores 2 additional arguments,\
+  e.g. `ip r a 1.1.1.1 via 2.2.2.2 dev utun5` is interpreted as `ip r a 1.1.1.1 via 2.2.2.2` (https://github.com/brona/iproute2mac/issues/45)
 
-**v1.1.0**
-* Added source IP address to `ip route get` command
-* Accepted to Homebrew master branch, tap is no longer supported
+</details>
 
-**v1.0.9**
-* Fixed versioning
+<details>
+  <summary><b>v1.4.1</b></summary>
 
-**v1.0.8**
-* Better error handling and error messages (thanks @rgcr)
+- Fixed `ip neigh show dev en0`
+  (https://github.com/brona/iproute2mac/issues/43, thanks [@SimonTate](https://github.com/SimonTate))
 
-**v1.0.7**
-* Help messages are now sent to stderr (thanks @rgcr)
+</details>
 
-**v1.0.6**
-* Fixed `ip -6 neigh` failing for N status flag
+<details>
+  <summary><b>v1.4.0</b></summary>
 
-**v1.0.5**
-* Added `s` shortcuts to `show` commands (thanks @vmoutoussamy)
+- Internal cleanup and code style changes
+- Added support for blackhole routes `ip route add blackhole 192.0.2.0/24`
+  (thanks [@mhio](https://github.com/mhio))
+- :warning: `ip route flush cache` no longer flushes anything
+- `ip route flush table main` flushes all routes
+- `ip neigh show 192.0.2.0/24` filters neighbours
+- Flag compatibility for `-help` and `-Version`
+- Uniform matching for show command alternatives
 
-**v1.0.4**
-* Added `ip neigh flush` (thanks @ThangCZ)
-* Added `dev` option to `ip neigh show` and `ip neigh flush`
+</details>
 
-**v1.0.3**
-* Fixed `ifconfig: dev: bad value` in `ip addr del`
+<details>
+  <summary><b>v1.3.0</b></summary>
 
-**v1.0.2**
-* Interface name is concatenated to `ip addr` inet rows
+- Migrated to Python 3
+
+</details>
+
+<details>
+  <summary><b>v1.2.3</b></summary>
+
+- Fixed issues with `ip route` on macOS Catalina
+  (thanks [@jiegec](https://github.com/jiegec))
+- `ip route` now returns host addresses
+  (thanks [@crvv](https://github.com/crvv))
+- Added `ip route flush cache`
+  (thanks [@npeters](https://github.com/npeters))
+- Added `ip route replace 192.0.2.0/24 dev utun1`
+  (thanks [@npeters](https://github.com/npeters))
+- Added `ip addr add 192.0.2.1/32 peer 192.0.2.1 dev utun1`
+  (thanks [@npeters](https://github.com/npeters))
+
+</details>
+
+<details>
+  <summary><b>v1.2.2</b></summary>
+
+- Fixed argument handling while using `ip -4`
+  (thanks [@bsholdice](https://github.com/bsholdice))
+- Fixed `ip help`
+  (thanks [@KireinaHoro](https://github.com/KireinaHoro))
+
+</details>
+
+<details>
+  <summary><b>v1.2.1</b></summary>
+
+- Fixed error return codes and test script
+- `ip neigh flush` now requires specific device
+  (consistent behaviour with iproute2)
+
+</details>
+
+<details>
+  <summary><b>v1.2.0</b></summary>
+
+- Enhanced input parsing to support arbitrary length commands
+  (thanks [@deployable](https://github.com/deployable))
+- Added simple test script
+  (thanks [@deployable](https://github.com/deployable))
+- Fixed error return codes to simulate iproute2\
+  (currently, help messages are inconsistently printed to stderr for all errors, unlike in iproute2)
+
+</details>
+
+<details>
+  <summary><b>v1.1.2</b></summary>
+
+- `ip route get` now correctly shows `src` for IPv6 addresses (thanks [@codeaholics](https://github.com/codeaholics))
+
+</details>
+
+<details>
+  <summary><b>v1.1.1</b></summary>
+
+- Added `dev` option to `ip route add` command (thanks [@ThangCZ](https://github.com/ThangCZ))
+
+</details>
+
+<details>
+  <summary><b>v1.1.0</b></summary>
+
+- Added source IP address to `ip route get` command
+- Accepted to Homebrew master branch, tap is no longer supported
+
+</details>
+
+<details>
+  <summary><b>v1.0.9</b></summary>
+
+- Fixed versioning
+
+</details>
+
+<details>
+  <summary><b>v1.0.8</b></summary>
+
+- Better error handling and error messages (thanks [@rgcr](https://github.com/rgcr))
+
+</details>
+
+<details>
+  <summary><b>v1.0.7</b></summary>
+
+- Help messages are now sent to stderr (thanks [@rgcr](https://github.com/rgcr))
+
+</details>
+
+<details>
+  <summary><b>v1.0.6</b></summary>
+
+- Fixed `ip -6 neigh` failing for N status flag
+
+</details>
+
+<details>
+  <summary><b>v1.0.5</b></summary>
+
+- Added `s` shortcuts to `show` commands (thanks [@vmoutoussamy](https://github.com/vmoutoussamy))
+
+</details>
+
+<details>
+  <summary><b>v1.0.4</b></summary>
+
+- Added `ip neigh flush` (thanks [@ThangCZ](https://github.com/ThangCZ))
+- Added `dev` option to `ip neigh show` and `ip neigh flush`
+
+</details>
+
+<details>
+  <summary><b>v1.0.3</b></summary>
+
+- Fixed `ifconfig: dev: bad value` in `ip addr del`
+
+</details>
+
+<details>
+  <summary><b>v1.0.2</b></summary>
+
+- Interface name is concatenated to `ip addr` inet rows
+
+</details>
 
 ## Authors
 
-See AUTHORS.
+See [AUTHORS](./AUTHORS).
 
 Used software/code:
 
@@ -189,4 +300,7 @@ Used software/code:
 
 ## License
 
-* The MIT License (MIT)
+* [The MIT License](./LICENSE) (MIT)
+
+
+[iproute2]: http://www.policyrouting.org/iproute2.doc.html
