@@ -90,6 +90,12 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * List bridges (with pretty print): `bridge -j -p link show`
 
 ## Changelog
+<details open>
+  <summary><b>v1.5.4</b></summary>
+
+- Fixed https://github.com/brona/iproute2mac/issues/57 `--color` address parsing for ptp links
+
+</details>
 
 <details open>
   <summary><b>v1.5.3</b></summary>
