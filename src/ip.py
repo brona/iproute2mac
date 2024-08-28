@@ -53,25 +53,30 @@ def parse_ifconfig(res, af, address):
                     r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
-                (local, netmask) = re.findall(
-                    r"inet (\d+\.\d+\.\d+\.\d+) .*netmask (0x[\da-f]+)", r)[0]
+                (local, peer, netmask) = re.findall(
+                    r"inet (\d+\.\d+\.\d+\.\d+)(?: --> (\d+\.\d+\.\d+\.\d+))? netmask (0x[\da-f]+)", r)[0]
                 addr = {
                     "family": "inet",
                     "local": local,
                     "prefixlen": netmask_to_length(netmask),
                 }
+                if peer:
+                    addr["address"] = peer
                 if re.match(r"^.*broadcast", r):
                     addr["broadcast"] = re.findall(
                         r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
-                (local, prefixlen) = re.findall(
-                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w* prefixlen (\d+)", r)[0]
-                link["addr_info"] = link.get("addr_info", []) + [{
+                (local, peer, prefixlen) = re.findall(
+                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w*(?: --> ([\da-f:]*:[\da-f:]+)%*\w*)? prefixlen (\d+)", r)[0]
+                addr = {
                   "family": "inet6",
                   "local": local,
                   "prefixlen": int(prefixlen)
-                }]
+                }
+                if peer:
+                    addr["address"] = peer
+                link["addr_info"] = link.get("addr_info", []) + [addr]
             elif re.match(r"^\s+status: ", r):
                 match re.findall(r"status: (\w+)", r)[0]:
                     case "active":
@@ -120,7 +125,9 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
         )
         for a in l.get("addr_info", []):
             print(
-                "    %s %s/%d" % (a["family"], a["local"], a["prefixlen"]) +
+                "    %s %s" % (a["family"], a["local"]) +
+                ((" peer %s" % a["address"]) if "address" in a else "") +
+                "/%d" % (a["prefixlen"]) +
                 ((" brd " + a["broadcast"]) if "broadcast" in a else "")
             )
 
