@@ -93,7 +93,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>v1.5.4</b></summary>
 
-- Fixed https://github.com/brona/iproute2mac/issues/57 address parsing for ptp links
+- Fixed https://github.com/brona/iproute2mac/issues/56 address parsing for ptp links
 
 </details>
 
