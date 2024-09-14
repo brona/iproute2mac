@@ -129,170 +129,173 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 </details>
 
 <details>
-  <summary><b>v1.4.2</b></summary>
+  <summary><b>v1.0 ~ v1.4</b></summary>
+  <details open>
+    <summary><b>v1.4.2</b></summary>
 
-- `-color` option is now being ignored
-  (https://github.com/brona/iproute2mac/issues/47, thanks [@lexhuismans](https://github.com/lexhuismans))
-- Added support for double dashed options,\
-  e.g. `--color` as well as `-color`
-- `ip route add` now ignores 2 additional arguments,\
-  e.g. `ip r a 1.1.1.1 via 2.2.2.2 dev utun5` is interpreted as `ip r a 1.1.1.1 via 2.2.2.2` (https://github.com/brona/iproute2mac/issues/45)
+  - `-color` option is now being ignored
+    (https://github.com/brona/iproute2mac/issues/47, thanks [@lexhuismans](https://github.com/lexhuismans))
+  - Added support for double dashed options,\
+    e.g. `--color` as well as `-color`
+  - `ip route add` now ignores 2 additional arguments,\
+    e.g. `ip r a 1.1.1.1 via 2.2.2.2 dev utun5` is interpreted as `ip r a 1.1.1.1 via 2.2.2.2` (https://github.com/brona/iproute2mac/issues/45)
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.4.1</b></summary>
+  <details open>
+    <summary><b>v1.4.1</b></summary>
 
-- Fixed `ip neigh show dev en0`
-  (https://github.com/brona/iproute2mac/issues/43, thanks [@SimonTate](https://github.com/SimonTate))
+  - Fixed `ip neigh show dev en0`
+    (https://github.com/brona/iproute2mac/issues/43, thanks [@SimonTate](https://github.com/SimonTate))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.4.0</b></summary>
+  <details open>
+    <summary><b>v1.4.0</b></summary>
 
-- Internal cleanup and code style changes
-- Added support for blackhole routes `ip route add blackhole 192.0.2.0/24`
-  (thanks [@mhio](https://github.com/mhio))
-- :warning: `ip route flush cache` no longer flushes anything
-- `ip route flush table main` flushes all routes
-- `ip neigh show 192.0.2.0/24` filters neighbours
-- Flag compatibility for `-help` and `-Version`
-- Uniform matching for show command alternatives
+  - Internal cleanup and code style changes
+  - Added support for blackhole routes `ip route add blackhole 192.0.2.0/24`
+    (thanks [@mhio](https://github.com/mhio))
+  - :warning: `ip route flush cache` no longer flushes anything
+  - `ip route flush table main` flushes all routes
+  - `ip neigh show 192.0.2.0/24` filters neighbours
+  - Flag compatibility for `-help` and `-Version`
+  - Uniform matching for show command alternatives
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.3.0</b></summary>
+  <details open>
+    <summary><b>v1.3.0</b></summary>
 
-- Migrated to Python 3
+  - Migrated to Python 3
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.2.3</b></summary>
+  <details open>
+    <summary><b>v1.2.3</b></summary>
 
-- Fixed issues with `ip route` on macOS Catalina
-  (thanks [@jiegec](https://github.com/jiegec))
-- `ip route` now returns host addresses
-  (thanks [@crvv](https://github.com/crvv))
-- Added `ip route flush cache`
-  (thanks [@npeters](https://github.com/npeters))
-- Added `ip route replace 192.0.2.0/24 dev utun1`
-  (thanks [@npeters](https://github.com/npeters))
-- Added `ip addr add 192.0.2.1/32 peer 192.0.2.1 dev utun1`
-  (thanks [@npeters](https://github.com/npeters))
+  - Fixed issues with `ip route` on macOS Catalina
+    (thanks [@jiegec](https://github.com/jiegec))
+  - `ip route` now returns host addresses
+    (thanks [@crvv](https://github.com/crvv))
+  - Added `ip route flush cache`
+    (thanks [@npeters](https://github.com/npeters))
+  - Added `ip route replace 192.0.2.0/24 dev utun1`
+    (thanks [@npeters](https://github.com/npeters))
+  - Added `ip addr add 192.0.2.1/32 peer 192.0.2.1 dev utun1`
+    (thanks [@npeters](https://github.com/npeters))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.2.2</b></summary>
+  <details open>
+    <summary><b>v1.2.2</b></summary>
 
-- Fixed argument handling while using `ip -4`
-  (thanks [@bsholdice](https://github.com/bsholdice))
-- Fixed `ip help`
-  (thanks [@KireinaHoro](https://github.com/KireinaHoro))
+  - Fixed argument handling while using `ip -4`
+    (thanks [@bsholdice](https://github.com/bsholdice))
+  - Fixed `ip help`
+    (thanks [@KireinaHoro](https://github.com/KireinaHoro))
 
-</details>
+  </details open>
 
-<details>
-  <summary><b>v1.2.1</b></summary>
+  <details open>
+    <summary><b>v1.2.1</b></summary>
 
-- Fixed error return codes and test script
-- `ip neigh flush` now requires specific device
-  (consistent behaviour with iproute2)
+  - Fixed error return codes and test script
+  - `ip neigh flush` now requires specific device
+    (consistent behaviour with iproute2)
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.2.0</b></summary>
+  <details open>
+    <summary><b>v1.2.0</b></summary>
 
-- Enhanced input parsing to support arbitrary length commands
-  (thanks [@deployable](https://github.com/deployable))
-- Added simple test script
-  (thanks [@deployable](https://github.com/deployable))
-- Fixed error return codes to simulate iproute2\
-  (currently, help messages are inconsistently printed to stderr for all errors, unlike in iproute2)
+  - Enhanced input parsing to support arbitrary length commands
+    (thanks [@deployable](https://github.com/deployable))
+  - Added simple test script
+    (thanks [@deployable](https://github.com/deployable))
+  - Fixed error return codes to simulate iproute2\
+    (currently, help messages are inconsistently printed to stderr for all errors, unlike in iproute2)
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.1.2</b></summary>
+  <details open>
+    <summary><b>v1.1.2</b></summary>
 
-- `ip route get` now correctly shows `src` for IPv6 addresses (thanks [@codeaholics](https://github.com/codeaholics))
+  - `ip route get` now correctly shows `src` for IPv6 addresses (thanks [@codeaholics](https://github.com/codeaholics))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.1.1</b></summary>
+  <details open>
+    <summary><b>v1.1.1</b></summary>
 
-- Added `dev` option to `ip route add` command (thanks [@ThangCZ](https://github.com/ThangCZ))
+  - Added `dev` option to `ip route add` command (thanks [@ThangCZ](https://github.com/ThangCZ))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.1.0</b></summary>
+  <details open>
+    <summary><b>v1.1.0</b></summary>
 
-- Added source IP address to `ip route get` command
-- Accepted to Homebrew master branch, tap is no longer supported
+  - Added source IP address to `ip route get` command
+  - Accepted to Homebrew master branch, tap is no longer supported
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.9</b></summary>
+  <details open>
+    <summary><b>v1.0.9</b></summary>
 
-- Fixed versioning
+  - Fixed versioning
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.8</b></summary>
+  <details open>
+    <summary><b>v1.0.8</b></summary>
 
-- Better error handling and error messages (thanks [@rgcr](https://github.com/rgcr))
+  - Better error handling and error messages (thanks [@rgcr](https://github.com/rgcr))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.7</b></summary>
+  <details open>
+    <summary><b>v1.0.7</b></summary>
 
-- Help messages are now sent to stderr (thanks [@rgcr](https://github.com/rgcr))
+  - Help messages are now sent to stderr (thanks [@rgcr](https://github.com/rgcr))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.6</b></summary>
+  <details open>
+    <summary><b>v1.0.6</b></summary>
 
-- Fixed `ip -6 neigh` failing for N status flag
+  - Fixed `ip -6 neigh` failing for N status flag
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.5</b></summary>
+  <details open>
+    <summary><b>v1.0.5</b></summary>
 
-- Added `s` shortcuts to `show` commands (thanks [@vmoutoussamy](https://github.com/vmoutoussamy))
+  - Added `s` shortcuts to `show` commands (thanks [@vmoutoussamy](https://github.com/vmoutoussamy))
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.4</b></summary>
+  <details open>
+    <summary><b>v1.0.4</b></summary>
 
-- Added `ip neigh flush` (thanks [@ThangCZ](https://github.com/ThangCZ))
-- Added `dev` option to `ip neigh show` and `ip neigh flush`
+  - Added `ip neigh flush` (thanks [@ThangCZ](https://github.com/ThangCZ))
+  - Added `dev` option to `ip neigh show` and `ip neigh flush`
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.3</b></summary>
+  <details open>
+    <summary><b>v1.0.3</b></summary>
 
-- Fixed `ifconfig: dev: bad value` in `ip addr del`
+  - Fixed `ifconfig: dev: bad value` in `ip addr del`
 
-</details>
+  </details>
 
-<details>
-  <summary><b>v1.0.2</b></summary>
+  <details open>
+    <summary><b>v1.0.2</b></summary>
 
-- Interface name is concatenated to `ip addr` inet rows
+  - Interface name is concatenated to `ip addr` inet rows
 
+  </details>
 </details>
 
 ## Authors
