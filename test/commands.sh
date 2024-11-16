@@ -154,4 +154,10 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 
 $bridge_cmd link show
 
+# Test color options
+$ip_cmd -c=never link show
+$ip_cmd -c=always link show
+$ip_cmd -c=auto link show
+$ip_cmd --color=never link show
+
 echo "Tests passed!!"
