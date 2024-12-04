@@ -348,8 +348,10 @@ def do_route_get(argv, af, json_print, pretty_json):
         perror(res)
         return False
     if res.find("not in table") >= 0:
-        perror(res)
-        exit(1)
+        if json_print:
+            return json_dump([], pretty_json)
+        else:
+            return True
 
     res = dict(
         re.findall(
