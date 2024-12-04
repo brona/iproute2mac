@@ -54,6 +54,8 @@ $ip_cmd -6 -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -j -p -6 route show | grep "fe80::/64"
 
+$ip_cmd -j route show default
+
 $ip_cmd ro sho
 
 $ip_cmd r s

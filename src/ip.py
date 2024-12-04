@@ -186,7 +186,7 @@ def do_route(argv, af, json_print, pretty_json):
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
         return do_route_list(af, json_print, pretty_json)
-    elif "get".startswith(argv[0]) and len(argv) == 2:
+    elif any_startswith(["show", "get"], argv[0]) and len(argv) == 2:
         argv.pop(0)
         return do_route_get(argv, af, json_print, pretty_json)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
