@@ -138,12 +138,12 @@ def format_socket_line(socket, numeric=False):
     peer_colored = colorize(Colors.GREEN, peer)
     
     # Format for display, adjust field spacing
-    return f"{netid:7} {state_colored:12} {recv_q:10} {send_q:10} {local_colored:30} {peer_colored:30}"
+    return f"{netid}\t{state_colored}\t{recv_q}\t{send_q}\t{local_colored}\t{peer_colored}"
 
 
 def print_header():
     """Print the table header"""
-    print(f"{'Netid':7} {'State':12} {'Recv-Q':10} {'Send-Q':10} {'Local Address:Port':30} {'Peer Address:Port':30}")
+    print(f"Netid\tState\tRecv-Q\tSend-Q\tLocal Address:Port\tPeer Address:Port")
 
 
 def do_summary():
