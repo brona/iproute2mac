@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 """
   iproute2mac
   CLI wrapper for basic network utilites on Mac OS X.
@@ -11,6 +10,8 @@
 """
 
 from iproute2mac import *
+from utils.color import Colors, colorize, init_color
+
 import ipaddress
 import os
 import re
@@ -114,18 +115,29 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
         return json_dump(links, pretty_json)
 
     for l in links:
+        # Colorize interface name and status
+        ifname = colorize(Colors.CYAN, l["ifname"])
+        status = colorize(Colors.GREEN if l["operstate"] == "UP" else Colors.RED, 
+                         l["operstate"])
+        
         print("%d: %s: <%s> mtu %d status %s" % (
-            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"],
-            l["operstate"]
+            l["ifindex"], ifname, ",".join(l["flags"]), l["mtu"],
+            status
         ))
+        
+        # Colorize link info
+        link_type = colorize(Colors.YELLOW, "link/" + l["link_type"])
         print(
-            "    link/" + l["link_type"] +
+            "    " + link_type +
             ((" " + l["address"]) if "address" in l else "") +
             ((" brd " + l["broadcast"]) if "broadcast" in l else "")
         )
+        
+        # Colorize address info
         for a in l.get("addr_info", []):
+            family = colorize(Colors.BLUE, a["family"])
             print(
-                "    %s %s" % (a["family"], a["local"]) +
+                "    %s %s" % (family, a["local"]) +
                 ((" peer %s" % a["address"]) if "address" in a else "") +
                 "/%d" % (a["prefixlen"]) +
                 ((" brd " + a["broadcast"]) if "broadcast" in a else "")
@@ -138,7 +150,7 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
 def do_help(argv=None, af=None, json_print=None, pretty_json=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor][=auto|always|never] |")
     perror("                    -4 | -6 }")
     perror(HELP_ADDENDUM)
     exit(255)
@@ -685,8 +697,7 @@ def main(argv):
             af = 4
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
-            if "never" not in argv[0].split("="):
-                perror("iproute2mac: Color option is not implemented")
+            init_color(argv[0])
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True

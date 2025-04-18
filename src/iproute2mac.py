@@ -10,11 +10,11 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
+from utils.color import perror
+
 import json
 import random
-import re
 import subprocess
-import sys
 import types
 
 # Version
@@ -34,12 +34,6 @@ Homepage: https://github.com/brona/iproute2mac
 This is CLI wrapper for basic network utilities on Mac OS X inspired with iproute2 on Linux systems.
 Provided functionality is limited and command output is not fully compatible with iproute2.
 For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly."""  # noqa: E501
-
-
-# Helper functions
-def perror(*args):
-    sys.stderr.write(*args)
-    sys.stderr.write("\n")
 
 
 def execute_cmd(cmd):
