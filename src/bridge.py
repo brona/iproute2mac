@@ -11,6 +11,8 @@
 """
 
 from iproute2mac import *
+from utils.color import Colors, colorize, init_color
+
 import re
 import subprocess
 import sys
@@ -97,7 +99,7 @@ def parse_ifconfig(res):
 def do_help(argv=None, json_print=None, pretty_json=None):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] }")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor][=auto|always|never] }")
     perror(HELP_ADDENDUM)
     exit(255)
 
@@ -140,6 +142,7 @@ def do_link_show(argv, json_print, pretty_json):
     )
     if status:  # unix status
         if res == "":
+            param = dev if dev else "-a"
             perror(param + " not found")
         else:
             perror(res)
@@ -170,11 +173,11 @@ def do_link_show(argv, json_print, pretty_json):
     for b in bridges:
         print("%d: %s: <%s> mtu %d master %s state %s priority %d cost %d" % (
             b["ifindex"],
-            b["ifname"],
+            colorize(Colors.CYAN, b["ifname"]),
             ",".join(b["flags"]),
             b["mtu"],
-            b["master"],
-            b["state"],
+            colorize(Colors.GREEN, b["master"]),
+            colorize(Colors.YELLOW, b["state"]),
             b["priority"],
             b["cost"]
         ))
@@ -205,8 +208,7 @@ def main(argv):
         argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
         if "-color".startswith(argv[0].split("=")[0]):
-            if "never" not in argv[0].split("="):
-                perror("iproute2mac: Color option is not implemented")
+            init_color(argv[0])
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True

@@ -10,6 +10,8 @@
 """
 
 from iproute2mac import *
+from utils.color import Colors, colorize, init_color
+
 import ipaddress
 import os
 import re
@@ -683,10 +685,7 @@ def main(argv):
     af = -1  # default / both
     json_print = False
     pretty_json = False
-    
-    # Get NO_COLOR env var
-    no_color = os.getenv("NO_COLOR") is not None
-    
+
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
         argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
@@ -698,14 +697,7 @@ def main(argv):
             af = 4
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
-            color_arg = argv[0].split("=")[1] if "=" in argv[0] else "auto"
-            if color_arg == "never":
-                set_color_output(False)
-            elif color_arg == "always":
-                set_color_output(True)
-            elif color_arg == "auto":
-                # Enable colors if stdout is a terminal and NO_COLOR is not set
-                set_color_output(sys.stdout.isatty() and not no_color)
+            init_color(argv[0])
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
