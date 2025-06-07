@@ -135,8 +135,6 @@ def link_addr_show(argv, af, json_print, pretty_json, address, brief=False):
             # Add minimum 7 spaces before first address, then single space between addresses
             if addrs:
                 line += "       " + " ".join(addrs)
-            else:
-                line += ""
             print(line)
     else:
         for l in links:
