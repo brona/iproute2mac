@@ -90,7 +90,7 @@ def parse_ifconfig(res, af, address):
     return links
 
 
-def link_addr_show(argv, af, json_print, pretty_json, address):
+def link_addr_show(argv, af, json_print, pretty_json, color, address):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -115,27 +115,30 @@ def link_addr_show(argv, af, json_print, pretty_json, address):
 
     for l in links:
         print("%d: %s: <%s> mtu %d status %s" % (
-            l["ifindex"], l["ifname"], ",".join(l["flags"]), l["mtu"],
-            l["operstate"]
+            l["ifindex"],
+            colorize_ifname(color, l["ifname"]),
+            ",".join(l["flags"]),
+            l["mtu"],
+            colorize_op_state(color, l["operstate"])
         ))
         print(
             "    link/" + l["link_type"] +
-            ((" " + l["address"]) if "address" in l else "") +
-            ((" brd " + l["broadcast"]) if "broadcast" in l else "")
+            ((" " + colorize_mac(color, l["address"])) if "address" in l else "") +
+            ((" brd " + colorize_mac(color, l["broadcast"])) if "broadcast" in l else "")
         )
         for a in l.get("addr_info", []):
             print(
-                "    %s %s" % (a["family"], a["local"]) +
-                ((" peer %s" % a["address"]) if "address" in a else "") +
+                "    %s %s" % (a["family"], colorize_inet(color, a["family"], a["local"])) +
+                ((" peer %s" % colorize_inet(color, a["family"], a["address"])) if "address" in a else "") +
                 "/%d" % (a["prefixlen"]) +
-                ((" brd " + a["broadcast"]) if "broadcast" in a else "")
+                ((" brd " + colorize_inet(color, a["family"], a["broadcast"])) if "broadcast" in a else "")
             )
 
     return True
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None, pretty_json=None):
+def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
@@ -181,14 +184,14 @@ def do_help_neigh():
 
 # Route Module
 @help_msg(do_help_route)
-def do_route(argv, af, json_print, pretty_json):
+def do_route(argv, af, json_print, pretty_json, color):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
-        return do_route_list(af, json_print, pretty_json)
+        return do_route_list(af, json_print, pretty_json, color)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
-        return do_route_get(argv, af, json_print, pretty_json)
+        return do_route_get(argv, af, json_print, pretty_json, color)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_add(argv, af)
@@ -206,7 +209,7 @@ def do_route(argv, af, json_print, pretty_json):
     return True
 
 
-def do_route_list(af, json_print, pretty_json):
+def do_route_list(af, json_print, pretty_json, color):
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
     status, res = subprocess.getstatusoutput(
@@ -248,13 +251,25 @@ def do_route_list(af, json_print, pretty_json):
 
     for route in routes:
         if "type" in route:
-            print("%s %s" % (route["type"], route["dst"]))
+            print("%s %s" % (
+                route["type"],
+                colorize_inet(color, inet, route["dst"])
+                )
+            )
         elif "scope" in route:
             print("%s dev %s scope %s" % (
-                route["dst"], route["dev"], route["scope"]))
+                colorize_inet(color, inet, route["dst"]),
+                colorize_ifname(color, route["dev"]),
+                route["scope"]
+                )
+            )
         elif "gateway" in route:
             print("%s via %s dev %s" % (
-                route["dst"], route["gateway"], route["dev"]))
+                colorize_inet(color, inet, route["dst"]),
+                colorize_inet(color, inet, route["gateway"]),
+                colorize_ifname(color, route["dev"])
+                )
+            )
 
     return True
 
@@ -331,15 +346,17 @@ def do_route_flush(argv, af):
         return False
 
 
-def do_route_get(argv, af, json_print, pretty_json):
+def do_route_get(argv, af, json_print, pretty_json, color):
     target = argv[0]
 
     inet = ""
     if ":" in target or af == 6:
         inet = "-inet6 "
         family = socket.AF_INET6
+        color_af = "inet6"
     else:
         family = socket.AF_INET
+        color_af = "inet"
 
     status, res = subprocess.getstatusoutput(
         ROUTE + " -n get " + inet + target
@@ -380,10 +397,10 @@ def do_route_get(argv, af, json_print, pretty_json):
         return json_dump([route], pretty_json)
 
     print(
-        route["dst"] +
-        ((" via " + route["gateway"]) if "gateway" in route else "") +
-        " dev " + route["dev"] +
-        ((" src " + route["prefsrc"]) if "prefsrc" in route else "") +
+        colorize_inet(color, color_af, route["dst"]) +
+        ((" via " + colorize_inet(color, color_af, route["gateway"])) if "gateway" in route else "") +
+        " dev " + colorize_ifname(color, route["dev"]) +
+        ((" src " + colorize_inet(color, color_af, route["prefsrc"])) if "prefsrc" in route else "") +
         " uid " + str(route["uid"])
     )
 
@@ -392,13 +409,13 @@ def do_route_get(argv, af, json_print, pretty_json):
 
 # Addr Module
 @help_msg(do_help_addr)
-def do_addr(argv, af, json_print, pretty_json):
+def do_addr(argv, af, json_print, pretty_json, color):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_addr_show(argv, af, json_print, pretty_json)
+        return do_addr_show(argv, af, json_print, pretty_json, color)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
@@ -410,8 +427,8 @@ def do_addr(argv, af, json_print, pretty_json):
     return True
 
 
-def do_addr_show(argv, af, json_print, pretty_json):
-    return link_addr_show(argv, af, json_print, pretty_json, True)
+def do_addr_show(argv, af, json_print, pretty_json, color):
+    return link_addr_show(argv, af, json_print, pretty_json, color, True)
 
 
 def do_addr_add(argv, af):
@@ -464,13 +481,13 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, af, json_print, pretty_json):
+def do_link(argv, af, json_print, pretty_json, color):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, af, json_print, pretty_json)
+        return do_link_show(argv, af, json_print, pretty_json, color)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
@@ -479,8 +496,8 @@ def do_link(argv, af, json_print, pretty_json):
     return True
 
 
-def do_link_show(argv, af, json_print, pretty_json):
-    return link_addr_show(argv, af, json_print, pretty_json, False)
+def do_link_show(argv, af, json_print, pretty_json, color):
+    return link_addr_show(argv, af, json_print, pretty_json, color, False)
 
 
 def do_link_set(argv, af):
@@ -533,13 +550,13 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg(do_help_neigh)
-def do_neigh(argv, af, json_print, pretty_json):
+def do_neigh(argv, af, json_print, pretty_json, color):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
         argv.pop(0)
-        return do_neigh_show(argv, af, json_print, pretty_json)
+        return do_neigh_show(argv, af, json_print, pretty_json, color)
     elif "flush".startswith(argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
@@ -547,7 +564,7 @@ def do_neigh(argv, af, json_print, pretty_json):
         return False
 
 
-def do_neigh_show(argv, af, json_print, pretty_json):
+def do_neigh_show(argv, af, json_print, pretty_json, color):
     prefix = None
     dev = None
     try:
@@ -630,9 +647,9 @@ def do_neigh_show(argv, af, json_print, pretty_json):
 
     for nb in neighs:
         print(
-            nb["dst"] +
-            ("" if nb["dev"] is None else " dev " + nb["dev"]) +
-            ("" if "lladdr" not in nb else " lladdr " + nb["lladdr"]) +
+            colorize_inet(color, "inet6" if ":" in nb["dst"] else "inet", nb["dst"]) +
+            ("" if nb["dev"] is None else " dev " + colorize_ifname(color, nb["dev"])) +
+            ("" if "lladdr" not in nb else " lladdr " + colorize_mac(color, nb["lladdr"])) +
             (" router" if "router" in nb else "") +
             " %s" % (nb["state"][0])
         )
@@ -677,6 +694,7 @@ def main(argv):
     af = -1  # default / both
     json_print = False
     pretty_json = False
+    color_mode = "never"
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
@@ -689,8 +707,11 @@ def main(argv):
             af = 4
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
-            if "never" not in argv[0].split("="):
-                perror("iproute2mac: Color option is not implemented")
+            # 'always' is default if -color is set without any value
+            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
+            if color_mode not in ["never", "always", "auto"]:
+                perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
+                exit(255)
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
@@ -704,18 +725,20 @@ def main(argv):
         elif "-help".startswith(argv[0]):
             return False
         else:
-            perror('Option "{}" is unknown, try "ip help".'.format(argv[0]))
+            perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
             exit(255)
 
     if not argv:
         return False
+
+    color_scheme = get_color_scheme(color_mode, json_print)
 
     for cmd, cmd_func in cmds:
         if cmd.startswith(argv[0]):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af, json_print, pretty_json)
+            return cmd_func(argv, af, json_print, pretty_json, color_scheme)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)
