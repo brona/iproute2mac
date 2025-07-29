@@ -593,10 +593,12 @@ def do_neigh_show(argv, af, json_print, pretty_json):
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
             if cols[1] == "(incomplete)" and cols[4] != "R":
-                entry["status"] = ["INCOMPLETE"]
+                entry["state"] = ["INCOMPLETE"]
             else:
-                entry["status"] = [nd_ll_states[cols[4]]]
-            entry["router"] = len(cols) >= 6 and cols[5] == "R"
+                entry["state"] = [nd_ll_states[cols[4]]]
+            if len(cols) >= 6 and cols[5] == "R":
+                # iproute2 outputs null in its json
+                entry["router"] = None
             neighs.append(entry)
 
     if af != 6:
@@ -616,10 +618,11 @@ def do_neigh_show(argv, af, json_print, pretty_json):
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
             if cols[1] == "(incomplete)":
-                entry["status"] = ["INCOMPLETE"]
+                entry["state"] = ["INCOMPLETE"]
             else:
-                entry["status"] = ["REACHABLE"]
-            entry["router"] = False
+                entry["state"] = ["REACHABLE"]
+            # router field is ipv6 feature, iproute2 doesn't include router element if not set
+            # entry["router"] = False
             neighs.append(entry)
 
     if json_print:
@@ -628,9 +631,10 @@ def do_neigh_show(argv, af, json_print, pretty_json):
     for nb in neighs:
         print(
             nb["dst"] +
-            ("", " dev " + nb["dev"], "")[dev is None] +
-            ("", " router")[nb["router"]] +
-            " %s" % (nb["status"][0])
+            ("" if nb["dev"] is None else " dev " + nb["dev"]) +
+            ("" if "lladdr" not in nb else " lladdr " + nb["lladdr"]) +
+            (" router" if "router" in nb else "") +
+            " %s" % (nb["state"][0])
         )
 
     return True
