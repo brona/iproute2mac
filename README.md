@@ -91,7 +91,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 
 ## Changelog
 <details open>
-  <summary><b>v.1.6.0</b></summary>
+  <summary><b>v1.6.0</b></summary>
 
 - Added `--color` with `auto`, `always` and `never` modes for show commands (https://github.com/brona/iproute2mac/issues/21 and https://github.com/brona/iproute2mac/issues/42, PR https://github.com/brona/iproute2mac/pull/63)
 - Fixed https://github.com/brona/iproute2mac/issues/68 `ip neigh show` not displaying lladdr in the output
