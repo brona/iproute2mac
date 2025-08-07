@@ -11,7 +11,7 @@ If you are interested in contributing, please see our [Contribution Guidelines](
 
 ## Installation
 
-A) [Preferred] Using [Homebrew](http://brew.sh):
+A) [Preferred] Using [Homebrew](http://brew.sh) (Maintained by @bronacz):
 
 ```bash
 # [Optional] Install Homebrew first, see http://brew.sh for options
@@ -31,6 +31,15 @@ git clone https://github.com/brona/iproute2mac.git
 ln -s iproute2mac/src/ip.py /usr/local/bin/ip
 ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
 ```
+
+D) Using [MacPorts](https://www.macports.org/) (Maintained by @i0ntempest):
+
+See https://ports.macports.org/port/iproute2mac/ and [Portfile](https://github.com/macports/macports-ports/blob/master/net/iproute2mac/Portfile)
+
+C) Using [NixOS](https://nixos.org/) (Maintained by @jiegec):
+
+See https://search.nixos.org/packages?show=iproute2mac&type=packages&query=iproute2mac and [package.nix](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/ip/iproute2mac/package.nix)
+
 
 ## Supported commands / Example usage
 
