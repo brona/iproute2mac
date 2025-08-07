@@ -21,6 +21,8 @@ A) [Preferred] Using [Homebrew](http://brew.sh) (Maintained by [@brona](https://
 brew install iproute2mac
 ```
 
+See https://formulae.brew.sh/formula/iproute2mac and [iproute2mac.rb](https://github.com/Homebrew/homebrew-core/blob/main/Formula/i/iproute2mac.rb) for mode details.
+
 B) Manual installation from HEAD:
 
 ```bash
