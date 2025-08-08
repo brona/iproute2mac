@@ -94,7 +94,7 @@ def parse_ifconfig(res):
 
 
 # Help
-def do_help(argv=None, json_print=None, pretty_json=None):
+def do_help(argv=None, json_print=None, pretty_json=None, color=None):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] }")
@@ -109,13 +109,13 @@ def do_help_link():
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, json_print, pretty_json):
+def do_link(argv, json_print, pretty_json, color):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, json_print, pretty_json)
+        return do_link_show(argv, json_print, pretty_json, color)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv)
@@ -124,7 +124,7 @@ def do_link(argv, json_print, pretty_json):
     return True
 
 
-def do_link_show(argv, json_print, pretty_json):
+def do_link_show(argv, json_print, pretty_json, color):
     if len(argv) > 1:
         if argv[0] != "dev":
             return False
@@ -170,7 +170,7 @@ def do_link_show(argv, json_print, pretty_json):
     for b in bridges:
         print("%d: %s: <%s> mtu %d master %s state %s priority %d cost %d" % (
             b["ifindex"],
-            b["ifname"],
+            colorize_ifname(color, b["ifname"]),
             ",".join(b["flags"]),
             b["mtu"],
             b["master"],
@@ -199,14 +199,18 @@ cmds = [
 def main(argv):
     json_print = False
     pretty_json = False
+    color_mode = "never"
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
         argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
         if "-color".startswith(argv[0].split("=")[0]):
-            if "never" not in argv[0].split("="):
-                perror("iproute2mac: Color option is not implemented")
+            # 'always' is default if -color is set without any value
+            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
+            if color_mode not in ["never", "always", "auto"]:
+                perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
+                exit(255)
             argv.pop(0)
         elif "-json".startswith(argv[0]):
             json_print = True
@@ -227,12 +231,14 @@ def main(argv):
     if not argv:
         return False
 
+    color_scheme = get_color_scheme(color_mode, json_print)
+
     for cmd, cmd_func in cmds:
         if cmd.startswith(argv[0]):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, json_print, pretty_json)
+            return cmd_func(argv, json_print, pretty_json, color_scheme)
 
     perror('Object "{}" is unknown, try "bridge help".'.format(argv[0]))
     exit(1)
