@@ -11,7 +11,7 @@ If you are interested in contributing, please see our [Contribution Guidelines](
 
 ## Installation
 
-A) [Preferred] Using [Homebrew](http://brew.sh):
+A) [Preferred] Using [Homebrew](http://brew.sh) (Maintained by [@brona](https://github.com/brona)):
 
 ```bash
 # [Optional] Install Homebrew first, see http://brew.sh for options
@@ -20,6 +20,8 @@ A) [Preferred] Using [Homebrew](http://brew.sh):
 # Install iproute2mac
 brew install iproute2mac
 ```
+
+See https://formulae.brew.sh/formula/iproute2mac and [iproute2mac.rb](https://github.com/Homebrew/homebrew-core/blob/main/Formula/i/iproute2mac.rb) for mode details.
 
 B) Manual installation from HEAD:
 
@@ -32,6 +34,15 @@ ln -s iproute2mac/src/ip.py /usr/local/bin/ip
 ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
 ln -s iproute2mac/src/ss.py /usr/local/bin/ss
 ```
+
+C) Using [MacPorts](https://www.macports.org/) (Maintained by [@i0ntempest](https://github.com/i0ntempest)):
+
+See https://ports.macports.org/port/iproute2mac/ and [Portfile](https://github.com/macports/macports-ports/blob/master/net/iproute2mac/Portfile)
+
+D) Using [NixOS](https://nixos.org/) (Maintained by [@jiegec](https://github.com/jiegec)):
+
+See https://search.nixos.org/packages?show=iproute2mac&type=packages&query=iproute2mac and [package.nix](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/ip/iproute2mac/package.nix)
+
 
 ## Supported commands / Example usage
 
@@ -108,6 +119,15 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Same options work for `bridge` and `ss` commands
 
 ## Changelog
+<details open>
+  <summary><b>v1.6.0</b></summary>
+
+- Added `--color` with `auto`, `always` and `never` modes for show commands (https://github.com/brona/iproute2mac/issues/21 and https://github.com/brona/iproute2mac/issues/42, PR https://github.com/brona/iproute2mac/pull/63)
+- Fixed https://github.com/brona/iproute2mac/issues/68 `ip neigh show` not displaying lladdr in the output
+- Fixed `ip neigh show` json output not matching iproute2 (`state` and `router` fields)
+
+</details>
+
 <details open>
   <summary><b>v1.5.4</b></summary>
 

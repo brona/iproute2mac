@@ -20,7 +20,14 @@ $ip_cmd --V
 $bridge_cmd --V
 $ss_cmd --V
 
+$ip_cmd -color -V
+$ip_cmd -color=always -V
+$ip_cmd -color=auto -V
 $ip_cmd -color=never -V
+
+$bridge_cmd -color -V
+$bridge_cmd -color=always -V
+$bridge_cmd -color=auto -V
 $bridge_cmd -color=never -V
 
 $ss_cmd -color -V
@@ -52,6 +59,8 @@ $ip_cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
 $ip_cmd route show
 
+$ip_cmd -c route show
+
 $ip_cmd -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -4 route show
@@ -62,6 +71,8 @@ $ip_cmd -4 -j -p route show | tee | grep '"dev": "lo0"'
 
 $ip_cmd -6 route show
 
+$ip_cmd -c -6 route show
+
 $ip_cmd -6 -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -j -p -6 route show | grep "fe80::/64"
@@ -71,6 +82,12 @@ $ip_cmd ro sho
 $ip_cmd r s
 
 ! $ip_cmd r asdf
+
+## get
+
+$ip_cmd rou get 127.0.0.1
+
+$ip_cmd -c rou get 127.0.0.1
 
 ## add/delete
 
@@ -92,6 +109,8 @@ $ip_cmd rou de $ip_dest via $ip_via
 $ip_cmd route add blackhole $ip_dest
 netstat -anr | grep "$ip_dest" | grep "B"
 
+$ip_cmd -c ro show
+
 $ip_cmd ro sh | grep -E "^blackhole $ip_dest"
 
 $ip_cmd route delete blackhole $ip_dest
@@ -102,6 +121,8 @@ $ip_cmd route delete blackhole $ip_dest
 $ip_cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
 
 $ip_cmd address show
+
+$ip_cmd -c address show
 
 $ip_cmd -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
@@ -130,6 +151,8 @@ $ip_cmd link help 2>&1 >/dev/null | grep "Usage: ip link"
 
 $ip_cmd lin hel 2>&1 >/dev/null | grep "Usage: ip link"
 
+$ip_cmd -c link show
+
 $ip_cmd link show | grep mtu
 
 $ip_cmd -j link show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
@@ -152,6 +175,8 @@ $ip_cmd nei help 2>&1 >/dev/null | grep "Usage: ip neighbour"
 
 $ip_cmd nei show
 
+$ip_cmd -c nei show
+
 $ip_cmd -j neigh show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
@@ -165,6 +190,7 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 ! $bridge_cmd link help 2>&1 >/dev/null | grep "Usage: bridge link"
 
 $bridge_cmd link show
+$bridge_cmd -c link show
 
 # ss
 
