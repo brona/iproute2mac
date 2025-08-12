@@ -1,7 +1,7 @@
 iproute2mac
 ===========
 
-*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip` and `bridge` commands*
+*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip`, `bridge` and `ss` commands*
 
 Provided functionality is limited and command output is not fully compatible with [iproute2].\
 Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.\
@@ -32,6 +32,7 @@ cd /usr/local/
 git clone https://github.com/brona/iproute2mac.git
 ln -s iproute2mac/src/ip.py /usr/local/bin/ip
 ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
+ln -s iproute2mac/src/ss.py /usr/local/bin/ss
 ```
 
 C) Using [MacPorts](https://www.macports.org/) (Maintained by [@i0ntempest](https://github.com/i0ntempest)):
@@ -55,6 +56,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * `ip neigh help`
   * `bridge help`
   * `bridge link help`
+  * `ss help`
 * Link module (Interfaces)
   * List local interfaces `ip link`
   * Show one interface `ip link show en0`
@@ -93,12 +95,28 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 * Bridge module
   * List bridge interfaces `bridge link`
   * List one bridged interface `bridge link show dev en2`
+* Socket Statistics (ss)
+  * Show all sockets `ss`
+  * Show listening sockets `ss -l`
+  * Show TCP sockets `ss -t`
+  * Show UDP sockets `ss -u`
+  * Show IPv4 sockets `ss -4`
+  * Show IPv6 sockets `ss -6`
+  * Show socket statistics `ss -s`
+  * Show all sockets (including listening) `ss -a`
 * JSON output
   * List interfaces: `ip -j link show`
   * List addresses: `ip -j addr show`
   * List neighbours: `ip -j neigh show`
   * List routes: `ip -j route show`
   * List bridges (with pretty print): `bridge -j -p link show`
+  * List sockets: `ss -j`
+* Color output
+  * Enable colors: `ip -color link show`
+  * Force colors: `ip -color=always link show`
+  * Auto colors: `ip -color=auto link show`
+  * Disable colors: `ip -color=never link show`
+  * Same options work for `bridge` and `ss` commands
 
 ## Changelog
 <details open>
