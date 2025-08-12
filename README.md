@@ -106,6 +106,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 
 ## Changelog
 <details open>
+  <summary><b>HEAD</b></summary>
+- Added `--brief` option for show commands (https://github.com/brona/iproute2mac/issues/42, PR https://github.com/brona/iproute2mac/pull/69)
+</details>
+
+<details open>
   <summary><b>v1.6.0</b></summary>
 
 - Added `--color` with `auto`, `always` and `never` modes for show commands (https://github.com/brona/iproute2mac/issues/21 and https://github.com/brona/iproute2mac/issues/42, PR https://github.com/brona/iproute2mac/pull/63)

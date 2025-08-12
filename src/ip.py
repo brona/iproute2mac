@@ -90,7 +90,7 @@ def parse_ifconfig(res, af, address):
     return links
 
 
-def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=False):
+def link_addr_show(argv, af, json_print, pretty_json, color, address, brief):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -113,9 +113,9 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
     if json_print:
         return json_dump(links, pretty_json)
 
-    if brief:
-        # Brief format: interface_name STATUS ip_addresses...
-        for l in links:
+    for l in links:
+        if brief:
+            # Brief format: interface_name STATUS ip_addresses...
             # Interface name (left-padded to align)
             ifname_colored = colorize_ifname(color, l["ifname"])
             ifname_padding = max(0, 16 - len(l["ifname"]))
@@ -140,8 +140,7 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
             if addrs:
                 line += "       " + " ".join(addrs)
             print(line)
-    else:
-        for l in links:
+        else:
             print("%d: %s: <%s> mtu %d status %s" % (
                 l["ifindex"],
                 colorize_ifname(color, l["ifname"]),
@@ -166,7 +165,7 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None):
+def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None, brief=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
@@ -212,7 +211,7 @@ def do_help_neigh():
 
 # Route Module
 @help_msg(do_help_route)
-def do_route(argv, af, json_print, pretty_json, color):
+def do_route(argv, af, json_print, pretty_json, color, brief):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
@@ -437,7 +436,7 @@ def do_route_get(argv, af, json_print, pretty_json, color):
 
 # Addr Module
 @help_msg(do_help_addr)
-def do_addr(argv, af, json_print, pretty_json, color, brief=False):
+def do_addr(argv, af, json_print, pretty_json, color, brief):
     if not argv:
         argv.append("show")
 
@@ -455,7 +454,7 @@ def do_addr(argv, af, json_print, pretty_json, color, brief=False):
     return True
 
 
-def do_addr_show(argv, af, json_print, pretty_json, color, brief=False):
+def do_addr_show(argv, af, json_print, pretty_json, color, brief):
     return link_addr_show(argv, af, json_print, pretty_json, color, True, brief)
 
 
@@ -509,7 +508,7 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, af, json_print, pretty_json, color, brief=False):
+def do_link(argv, af, json_print, pretty_json, color, brief):
     if not argv:
         argv.append("show")
 
@@ -524,7 +523,7 @@ def do_link(argv, af, json_print, pretty_json, color, brief=False):
     return True
 
 
-def do_link_show(argv, af, json_print, pretty_json, color, brief=False):
+def do_link_show(argv, af, json_print, pretty_json, color, brief):
     return link_addr_show(argv, af, json_print, pretty_json, color, False, brief)
 
 
@@ -578,7 +577,7 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg(do_help_neigh)
-def do_neigh(argv, af, json_print, pretty_json, color):
+def do_neigh(argv, af, json_print, pretty_json, color, brief):
     if not argv:
         argv.append("show")
 
@@ -735,7 +734,7 @@ def main(argv):
         elif argv[0] == "-4":
             af = 4
             argv.pop(0)
-        elif "-brief".startswith(argv[0]) or argv[0] == "-br":
+        elif "-brief".startswith(argv[0]):
             brief = True
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
@@ -770,11 +769,7 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            # Pass brief parameter only to commands that support it (addr and link)
-            if cmd in ["address", "link"]:
-                return cmd_func(argv, af, json_print, pretty_json, color_scheme, brief)
-            else:
-                return cmd_func(argv, af, json_print, pretty_json, color_scheme)
+            return cmd_func(argv, af, json_print, pretty_json, color_scheme, brief)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)
