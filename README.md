@@ -122,7 +122,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
-- Added `ss` command (https://github.com/brona/iproute2mac/pull/70, thanks [@luoling8192](https://github.com/luoling8192))
+- Added `ss` command (https://github.com/brona/iproute2mac/issues/20 ,https://github.com/brona/iproute2mac/pull/70, thanks [@luoling8192](https://github.com/luoling8192))
 
 </details>
 
