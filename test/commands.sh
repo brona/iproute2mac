@@ -144,6 +144,32 @@ $ip_cmd a s
 
 ! $ip_cmd addr asdf
 
+## brief format tests
+
+# Test basic -br addr show
+$ip_cmd -br addr show | grep -E "^lo[0-9]* +[A-Z]+ +"
+
+# Test -br a shorthand
+$ip_cmd -br a | grep -E "^lo[0-9]* +[A-Z]+ +"
+
+# Test -br with specific device
+$ip_cmd -br addr show dev lo0 | grep -E "^lo0 +[A-Z]+ +"
+
+# Test -br with -4 (IPv4 only)
+$ip_cmd -4 -br addr show | grep -E "^lo[0-9]* +[A-Z]+ +" | grep "127.0.0.1"
+
+# Test -br with -6 (IPv6 only)
+$ip_cmd -6 -br addr show | grep -E "^lo[0-9]* +[A-Z]+ +" | grep "::1"
+
+# Test -br with -j (JSON output should override brief)
+$ip_cmd -br -j addr show | perl -MJSON -e 'decode_json(<STDIN>)'
+
+# Test order: -br before command
+$ip_cmd -br addr show | grep -E "^lo[0-9]* +[A-Z]+ +"
+
+# Test order: -br after command (should also work)
+$ip_cmd addr -br show | grep -E "^lo[0-9]* +[A-Z]+ +"
+
 
 # link
 
@@ -168,6 +194,20 @@ $ip_cmd lin lst | grep mtu
 $ip_cmd l s | grep mtu
 
 ! $ip_cmd link asdf
+
+## link brief format tests
+
+# Test basic -br link show
+$ip_cmd -br link show | grep -E "^lo[0-9]* +[A-Z]+ +"
+
+# Test -br l shorthand
+$ip_cmd -br l | grep -E "^lo[0-9]* +[A-Z]+ +"
+
+# Test -br with specific device
+$ip_cmd -br link show lo0 | grep -E "^lo0 +[A-Z]+ +"
+
+# Test -br with -j (JSON output should override brief)
+$ip_cmd -br -j link show | perl -MJSON -e 'decode_json(<STDIN>)'
 
 # neigh
 
