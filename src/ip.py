@@ -678,8 +678,7 @@ def main(argv):
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
-        if argv[0][1] == "-":
-            argv[0] = argv[0][1:]
+        argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
         # Process options
         if argv[0] == "-6":
             af = 6
