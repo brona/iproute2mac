@@ -94,10 +94,10 @@ def parse_ifconfig(res):
 
 
 # Help
-def do_help(argv=None, json_print=None, pretty_json=None, color=None):
+def do_help(argv=None, json_print=None, pretty_json=None, color=None, oneline=None):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] }")
+    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] | -o[neline] }")
     perror(HELP_ADDENDUM)
     exit(255)
 
@@ -109,13 +109,13 @@ def do_help_link():
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, json_print, pretty_json, color):
+def do_link(argv, json_print, pretty_json, color, oneline):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, json_print, pretty_json, color)
+        return do_link_show(argv, json_print, pretty_json, color, oneline)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv)
@@ -124,7 +124,7 @@ def do_link(argv, json_print, pretty_json, color):
     return True
 
 
-def do_link_show(argv, json_print, pretty_json, color):
+def do_link_show(argv, json_print, pretty_json, color, oneline):
     if len(argv) > 1:
         if argv[0] != "dev":
             return False
@@ -166,9 +166,8 @@ def do_link_show(argv, json_print, pretty_json, color):
 
     if json_print:
         return json_dump(bridges, pretty_json)
-
-    for b in bridges:
-        print("%d: %s: <%s> mtu %d master %s state %s priority %d cost %d" % (
+    infos = [
+        "%d: %s: <%s> mtu %d master %s state %s priority %d cost %d" % (
             b["ifindex"],
             colorize_ifname(color, b["ifname"]),
             ",".join(b["flags"]),
@@ -177,8 +176,14 @@ def do_link_show(argv, json_print, pretty_json, color):
             b["state"],
             b["priority"],
             b["cost"]
-        ))
-
+        )
+        for b in bridges
+    ]
+    if oneline:
+        print("\\".join(infos))
+    else:
+        for info in infos:
+            print(info)
     return True
 
 
