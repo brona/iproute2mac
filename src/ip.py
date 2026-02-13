@@ -115,15 +115,9 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
     if brief:
         # Brief format: interface_name STATUS ip_addresses...
         for l in links:
-            # Interface name (left-padded to align)
-            ifname_colored = colorize_ifname(color, l["ifname"])
-            ifname_padding = max(0, 16 - len(l["ifname"]))
-            line = ifname_colored + " " * ifname_padding + " "
-
-            # Status
-            status_colored = colorize_op_state(color, l["operstate"])
-            status_padding = max(0, 8 - len(l["operstate"]))
-            line += status_colored + " " * status_padding
+            # Interface name (right-padded to align)
+            line = colorize_ifname(color, l["ifname"].ljust(16)) + " "
+            line += colorize_op_state(color, l["operstate"].ljust(8))
 
             # Add addresses
             addrs = []
