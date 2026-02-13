@@ -89,8 +89,7 @@ def parse_ifconfig(res, af, address):
 
     return links
 
-
-def link_addr_show(argv, af, json_print, pretty_json, color, address):
+def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=False):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -113,36 +112,64 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address):
     if json_print:
         return json_dump(links, pretty_json)
 
-    for l in links:
-        print("%d: %s: <%s> mtu %d status %s" % (
-            l["ifindex"],
-            colorize_ifname(color, l["ifname"]),
-            ",".join(l["flags"]),
-            l["mtu"],
-            colorize_op_state(color, l["operstate"])
-        ))
-        print(
-            "    link/" + l["link_type"] +
-            ((" " + colorize_mac(color, l["address"])) if "address" in l else "") +
-            ((" brd " + colorize_mac(color, l["broadcast"])) if "broadcast" in l else "")
-        )
-        for a in l.get("addr_info", []):
+    if brief:
+        # Brief format: interface_name STATUS ip_addresses...
+        for l in links:
+            # Interface name (left-padded to align)
+            ifname_colored = colorize_ifname(color, l["ifname"])
+            ifname_padding = max(0, 16 - len(l["ifname"]))
+            line = ifname_colored + " " * ifname_padding + " "
+
+            # Status
+            status_colored = colorize_op_state(color, l["operstate"])
+            status_padding = max(0, 8 - len(l["operstate"]))
+            line += status_colored + " " * status_padding
+
+            # Add addresses
+            addrs = []
+            for a in l.get("addr_info", []):
+                addr_str = "%s/%d" % (colorize_inet(color, a["family"], a["local"]), a["prefixlen"])
+                addrs.append(addr_str)
+
+            # For link output, show MAC address
+            if not address and "address" in l:
+                addrs.insert(0, colorize_mac(color, l["address"]))
+
+            # Add minimum 7 spaces before first address, then single space between addresses
+            if addrs:
+                line += "       " + " ".join(addrs)
+            print(line)
+    else:
+        for l in links:
+            print("%d: %s: <%s> mtu %d status %s" % (
+                l["ifindex"],
+                colorize_ifname(color, l["ifname"]),
+                ",".join(l["flags"]),
+                l["mtu"],
+                colorize_op_state(color, l["operstate"])
+            ))
             print(
-                "    %s %s" % (a["family"], colorize_inet(color, a["family"], a["local"])) +
-                ((" peer %s" % colorize_inet(color, a["family"], a["address"])) if "address" in a else "") +
-                "/%d" % (a["prefixlen"]) +
-                ((" brd " + colorize_inet(color, a["family"], a["broadcast"])) if "broadcast" in a else "")
+                "    link/" + l["link_type"] +
+                ((" " + colorize_mac(color, l["address"])) if "address" in l else "") +
+                ((" brd " + colorize_mac(color, l["broadcast"])) if "broadcast" in l else "")
             )
+            for a in l.get("addr_info", []):
+                print(
+                    "    %s %s" % (a["family"], colorize_inet(color, a["family"], a["local"])) +
+                    ((" peer %s" % colorize_inet(color, a["family"], a["address"])) if "address" in a else "") +
+                    "/%d" % (a["prefixlen"]) +
+                    ((" brd " + colorize_inet(color, a["family"], a["broadcast"])) if "broadcast" in a else "")
+                )
 
     return True
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None):
+def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None, brief=None):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
-    perror("                    -4 | -6 }")
+    perror("                    -br[ief] | -4 | -6 }")
     perror(HELP_ADDENDUM)
     exit(255)
 
@@ -184,7 +211,7 @@ def do_help_neigh():
 
 # Route Module
 @help_msg(do_help_route)
-def do_route(argv, af, json_print, pretty_json, color):
+def do_route(argv, af, json_print, pretty_json, color, brief):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
     ):
@@ -409,13 +436,20 @@ def do_route_get(argv, af, json_print, pretty_json, color):
 
 # Addr Module
 @help_msg(do_help_addr)
-def do_addr(argv, af, json_print, pretty_json, color):
+def do_addr(argv, af, json_print, pretty_json, color, brief):
+    # Handle -brief flag appearing after subcommand (e.g. ip addr -br show)
+    for a in argv[:]:
+        if a.startswith("-b") and "-brief".startswith(a):
+            argv.remove(a)
+            brief = True
+            break
+
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_addr_show(argv, af, json_print, pretty_json, color)
+        return do_addr_show(argv, af, json_print, pretty_json, color, brief)
     elif "add".startswith(argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
@@ -427,8 +461,8 @@ def do_addr(argv, af, json_print, pretty_json, color):
     return True
 
 
-def do_addr_show(argv, af, json_print, pretty_json, color):
-    return link_addr_show(argv, af, json_print, pretty_json, color, True)
+def do_addr_show(argv, af, json_print, pretty_json, color, brief):
+    return link_addr_show(argv, af, json_print, pretty_json, color, True, brief)
 
 
 def do_addr_add(argv, af):
@@ -481,13 +515,20 @@ def do_addr_del(argv, af):
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, af, json_print, pretty_json, color):
+def do_link(argv, af, json_print, pretty_json, color, brief):
+    # Handle -brief flag appearing after subcommand (e.g. ip link -br show)
+    for a in argv[:]:
+        if a.startswith("-b") and "-brief".startswith(a):
+            argv.remove(a)
+            brief = True
+            break
+
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, af, json_print, pretty_json, color)
+        return do_link_show(argv, af, json_print, pretty_json, color, brief)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
@@ -496,8 +537,8 @@ def do_link(argv, af, json_print, pretty_json, color):
     return True
 
 
-def do_link_show(argv, af, json_print, pretty_json, color):
-    return link_addr_show(argv, af, json_print, pretty_json, color, False)
+def do_link_show(argv, af, json_print, pretty_json, color, brief):
+    return link_addr_show(argv, af, json_print, pretty_json, color, False, brief)
 
 
 def do_link_set(argv, af):
@@ -550,7 +591,7 @@ def do_link_set(argv, af):
 
 # Neigh module
 @help_msg(do_help_neigh)
-def do_neigh(argv, af, json_print, pretty_json, color):
+def do_neigh(argv, af, json_print, pretty_json, color, brief):
     if not argv:
         argv.append("show")
 
@@ -694,6 +735,7 @@ def main(argv):
     af = -1  # default / both
     json_print = False
     pretty_json = False
+    brief = False
     color_mode = "never"
 
     while argv and argv[0].startswith("-"):
@@ -705,6 +747,9 @@ def main(argv):
             argv.pop(0)
         elif argv[0] == "-4":
             af = 4
+            argv.pop(0)
+        elif "-brief".startswith(argv[0]) or argv[0] == "-br":
+            brief = True
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
@@ -738,7 +783,7 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af, json_print, pretty_json, color_scheme)
+            return cmd_func(argv, af, json_print, pretty_json, color_scheme, brief)
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)
