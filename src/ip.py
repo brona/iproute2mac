@@ -89,7 +89,7 @@ def parse_ifconfig(res, af, address):
 
     return links
 
-def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=False):
+def link_addr_show(argv, af, json_print, pretty_json, color, address, brief):
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -112,9 +112,9 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
     if json_print:
         return json_dump(links, pretty_json)
 
-    if brief:
+    for l in links:
         # Brief format: interface_name STATUS ip_addresses...
-        for l in links:
+        if brief:
             # Interface name (right-padded to align)
             line = colorize_ifname(color, l["ifname"].ljust(16)) + " "
             line += colorize_op_state(color, l["operstate"].ljust(8))
@@ -133,8 +133,7 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief=Fals
             if addrs:
                 line += "       " + " ".join(addrs)
             print(line)
-    else:
-        for l in links:
+        else:
             print("%d: %s: <%s> mtu %d status %s" % (
                 l["ifindex"],
                 colorize_ifname(color, l["ifname"]),
