@@ -124,6 +124,8 @@ $ip_cmd address show
 
 $ip_cmd -c address show
 
+$ip_cmd -o address show
+
 $ip_cmd -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -4 addr show
@@ -175,6 +177,8 @@ $ip_cmd link help 2>&1 >/dev/null | grep "Usage: ip link"
 $ip_cmd lin hel 2>&1 >/dev/null | grep "Usage: ip link"
 
 $ip_cmd -c link show
+
+$ip_cmd -o link show
 
 $ip_cmd link show | grep mtu
 

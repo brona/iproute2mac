@@ -126,6 +126,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 
 - Added `ss` command (https://github.com/brona/iproute2mac/issues/20 ,https://github.com/brona/iproute2mac/pull/70, thanks [@luoling8192](https://github.com/luoling8192))
 - Added `-brief` option for link and address modules (https://github.com/brona/iproute2mac/issues/42 ,https://github.com/brona/iproute2mac/pull/69 thanks [@xraystyle](https://github.com/xraystyle))
+- Added `-oneline` option for `link` and `addr` modules (https://github.com/brona/iproute2mac/issues/17 ,https://github.com/brona/iproute2mac/pull/62 thanks [@waketzheng](https://github.com/waketzheng))
 
 </details>
 
