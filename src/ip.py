@@ -10,14 +10,15 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
-from iproute2mac import *
-from operator import itemgetter
 import ipaddress
 import os
 import re
 import socket
 import subprocess
 import sys
+from operator import itemgetter
+
+from iproute2mac import *
 
 
 # Decode ifconfig output

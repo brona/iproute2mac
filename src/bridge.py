@@ -10,10 +10,11 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
-from iproute2mac import *
 import re
 import subprocess
 import sys
+
+from iproute2mac import *
 
 
 # Decode ifconfig output

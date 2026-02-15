@@ -8,3 +8,6 @@ requires-python = ">=3.10"
 line-length = 79
 target-version = ['py310']
 include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"

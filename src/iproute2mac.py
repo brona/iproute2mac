@@ -11,13 +11,12 @@
 """
 
 import json
+import os
 import random
 import re
 import subprocess
 import sys
 import types
-import os
-
 
 # Version
 VERSION = "1.7.0"
