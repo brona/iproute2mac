@@ -99,12 +99,17 @@ def parse_ifconfig(res, af, address):
 def link_addr_show(
     argv, af, json_print, pretty_json, color, address, brief, oneline
 ):
+    param = ""
+    if "up" in argv:
+        argv.remove("up")
+        param = "-u "
+
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
-        param = argv[0]
+        param += argv[0]
     else:
-        param = "-a"
+        param += "-a"
 
     output_separator = "\\" if oneline else "\n"
 
@@ -259,13 +264,13 @@ def do_help_route():
 
 
 def do_help_addr():
-    perror("Usage: ip addr show [ dev STRING ]")
+    perror("Usage: ip addr show [ dev STRING ] [up]")
     perror("       ip addr { add | del } PREFIX dev STRING")
     exit(255)
 
 
 def do_help_link():
-    perror("Usage: ip link show [ DEVICE ]")
+    perror("Usage: ip link show [ DEVICE ] [up]")
     perror("       ip link set dev DEVICE")
     perror("                [ { up | down } ]")
     perror("                [ address { LLADDR | factory | random } ]")

@@ -125,6 +125,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   <summary><b>HEAD</b></summary>
 
 - `ip addr` and `ip link` returns results in `ifindex` order (https://github.com/brona/iproute2mac/issues/72)
+- `ip addr` and `ip link` support `up` filter (https://github.com/brona/iproute2mac/issues/71)
 
 </details>
 

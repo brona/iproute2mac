@@ -122,6 +122,10 @@ $ip_cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
 
 $ip_cmd address show
 
+$ip_cmd address show up | grep '127.0.0.1'
+
+$ip_cmd address show dev lo0 up  | grep '127.0.0.1'
+
 $ip_cmd -c address show
 
 $ip_cmd -o address show
@@ -181,6 +185,10 @@ $ip_cmd -c link show
 $ip_cmd -o link show
 
 $ip_cmd link show | grep mtu
+
+$ip_cmd link show up | grep lo0
+
+$ip_cmd link show dev lo0 up | grep lo0
 
 $ip_cmd -j link show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
