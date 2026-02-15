@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.10"
+
+[[package]]
+name = "iproute2mac"
+version = "1.6.0"
+source = { virtual = "." }

@@ -29,7 +29,8 @@ def parse_ifconfig(res, af, address):
             if count > 1:
                 links.append(link)
             (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r)[0]
+                r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r
+            )[0]
             flags = flags.split(",")
             link = {
                 "ifindex": int(ifindex),
@@ -37,7 +38,7 @@ def parse_ifconfig(res, af, address):
                 "flags": flags,
                 "mtu": int(mtu),
                 "operstate": "UNKNOWN",
-                "link_type": "unknown"
+                "link_type": "unknown",
             }
             if "LOOPBACK" in flags:
                 link["link_type"] = "loopback"
@@ -50,11 +51,14 @@ def parse_ifconfig(res, af, address):
             if re.match(r"^\s+ether ", r):
                 link["link_type"] = "ether"
                 link["address"] = re.findall(
-                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
+                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r
+                )[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif address and re.match(r"^\s+inet ", r) and af != 6:
                 (local, peer, netmask) = re.findall(
-                    r"inet (\d+\.\d+\.\d+\.\d+)(?: --> (\d+\.\d+\.\d+\.\d+))? netmask (0x[\da-f]+)", r)[0]
+                    r"inet (\d+\.\d+\.\d+\.\d+)(?: --> (\d+\.\d+\.\d+\.\d+))? netmask (0x[\da-f]+)",
+                    r,
+                )[0]
                 addr = {
                     "family": "inet",
                     "local": local,
@@ -64,15 +68,18 @@ def parse_ifconfig(res, af, address):
                     addr["address"] = peer
                 if re.match(r"^.*broadcast", r):
                     addr["broadcast"] = re.findall(
-                        r"broadcast (\d+\.\d+\.\d+\.\d+)", r)[0]
+                        r"broadcast (\d+\.\d+\.\d+\.\d+)", r
+                    )[0]
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
                 (local, peer, prefixlen) = re.findall(
-                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w*(?: --> ([\da-f:]*:[\da-f:]+)%*\w*)? prefixlen (\d+)", r)[0]
+                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w*(?: --> ([\da-f:]*:[\da-f:]+)%*\w*)? prefixlen (\d+)",
+                    r,
+                )[0]
                 addr = {
-                  "family": "inet6",
-                  "local": local,
-                  "prefixlen": int(prefixlen)
+                    "family": "inet6",
+                    "local": local,
+                    "prefixlen": int(prefixlen),
                 }
                 if peer:
                     addr["address"] = peer
@@ -88,6 +95,7 @@ def parse_ifconfig(res, af, address):
         links.append(link)
 
     return links
+
 
 def link_addr_show(argv, af, json_print, pretty_json, color, address, brief):
     if len(argv) > 0 and argv[0] == "dev":
@@ -115,50 +123,99 @@ def link_addr_show(argv, af, json_print, pretty_json, color, address, brief):
     for l in links:
         # Brief format: interface_name STATUS ip_addresses...
         if brief:
-            # Interface name (right-padded to align)
-            line = colorize_ifname(color, l["ifname"].ljust(16)) + " "
-            line += colorize_op_state(color, l["operstate"].ljust(8))
+            # Interface name and state (right-padded to align)
+            line = (
+                colorize_ifname(color, l["ifname"], 16)
+                + " "
+                + colorize_op_state(color, l["operstate"], 8)
+            )
 
             # Add addresses
             addrs = []
             for a in l.get("addr_info", []):
-                addr_str = "%s/%d" % (colorize_inet(color, a["family"], a["local"]), a["prefixlen"])
-                addrs.append(addr_str)
+                addrs.append(
+                    "%s/%d"
+                    % (
+                        colorize_inet(color, a["family"], a["local"]),
+                        a["prefixlen"],
+                    )
+                )
 
-            # For link output, show MAC address
-            if not address and "address" in l:
-                addrs.insert(0, colorize_mac(color, l["address"]))
+            # For `ip link` output
+            if not address:
+                #  Add MAC address
+                if "address" in l:
+                    addrs.append(colorize_mac(color, l["address"]))
+                # Add state flags if set
+                if len(l["flags"]) > 0 and l["flags"] != [""]:
+                    addrs.append("<%s>" % ",".join(l["flags"]))
 
-            # Add minimum 7 spaces before first address, then single space between addresses
             if addrs:
-                line += "       " + " ".join(addrs)
+                line += (" " * 7) + " ".join(addrs)
             print(line)
         else:
-            print("%d: %s: <%s> mtu %d status %s" % (
-                l["ifindex"],
-                colorize_ifname(color, l["ifname"]),
-                ",".join(l["flags"]),
-                l["mtu"],
-                colorize_op_state(color, l["operstate"])
-            ))
             print(
-                "    link/" + l["link_type"] +
-                ((" " + colorize_mac(color, l["address"])) if "address" in l else "") +
-                ((" brd " + colorize_mac(color, l["broadcast"])) if "broadcast" in l else "")
+                "%d: %s: <%s> mtu %d status %s"
+                % (
+                    l["ifindex"],
+                    colorize_ifname(color, l["ifname"]),
+                    ",".join(l["flags"]),
+                    l["mtu"],
+                    colorize_op_state(color, l["operstate"]),
+                )
+            )
+            print(
+                "    link/"
+                + l["link_type"]
+                + (
+                    (" " + colorize_mac(color, l["address"]))
+                    if "address" in l
+                    else ""
+                )
+                + (
+                    (" brd " + colorize_mac(color, l["broadcast"]))
+                    if "broadcast" in l
+                    else ""
+                )
             )
             for a in l.get("addr_info", []):
                 print(
-                    "    %s %s" % (a["family"], colorize_inet(color, a["family"], a["local"])) +
-                    ((" peer %s" % colorize_inet(color, a["family"], a["address"])) if "address" in a else "") +
-                    "/%d" % (a["prefixlen"]) +
-                    ((" brd " + colorize_inet(color, a["family"], a["broadcast"])) if "broadcast" in a else "")
+                    "    %s %s"
+                    % (
+                        a["family"],
+                        colorize_inet(color, a["family"], a["local"]),
+                    )
+                    + (
+                        (
+                            " peer %s"
+                            % colorize_inet(color, a["family"], a["address"])
+                        )
+                        if "address" in a
+                        else ""
+                    )
+                    + "/%d" % (a["prefixlen"])
+                    + (
+                        (
+                            " brd "
+                            + colorize_inet(color, a["family"], a["broadcast"])
+                        )
+                        if "broadcast" in a
+                        else ""
+                    )
                 )
 
     return True
 
 
 # Help
-def do_help(argv=None, af=None, json_print=None, pretty_json=None, color=None, brief=None):
+def do_help(
+    argv=None,
+    af=None,
+    json_print=None,
+    pretty_json=None,
+    color=None,
+    brief=None,
+):
     perror("Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link | addr | route | neigh }")
     perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] |")
@@ -261,33 +318,38 @@ def do_route_list(af, json_print, pretty_json, color):
             continue
         if re.match(r"link.+", gw):
             routes.append(
-                {"dst": target, "dev": dev, "scope": "link", "flags": []})
+                {"dst": target, "dev": dev, "scope": "link", "flags": []}
+            )
         else:
             routes.append(
-                {"dst": target, "gateway": gw, "dev": dev, "flags": []})
+                {"dst": target, "gateway": gw, "dev": dev, "flags": []}
+            )
 
     if json_print:
         return json_dump(routes, pretty_json)
 
     for route in routes:
         if "type" in route:
-            print("%s %s" % (
-                route["type"],
-                colorize_inet(color, inet, route["dst"])
-                )
+            print(
+                "%s %s"
+                % (route["type"], colorize_inet(color, inet, route["dst"]))
             )
         elif "scope" in route:
-            print("%s dev %s scope %s" % (
-                colorize_inet(color, inet, route["dst"]),
-                colorize_ifname(color, route["dev"]),
-                route["scope"]
+            print(
+                "%s dev %s scope %s"
+                % (
+                    colorize_inet(color, inet, route["dst"]),
+                    colorize_ifname(color, route["dev"]),
+                    route["scope"],
                 )
             )
         elif "gateway" in route:
-            print("%s via %s dev %s" % (
-                colorize_inet(color, inet, route["dst"]),
-                colorize_inet(color, inet, route["gateway"]),
-                colorize_ifname(color, route["dev"])
+            print(
+                "%s via %s dev %s"
+                % (
+                    colorize_inet(color, inet, route["dst"]),
+                    colorize_inet(color, inet, route["gateway"]),
+                    colorize_ifname(color, route["dev"]),
                 )
             )
 
@@ -309,8 +371,9 @@ def do_route_add(argv, af):
 
     if len(argv) == 5:
         perror(
-            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}"
-            .format(argv[3], argv[4])
+            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}".format(
+                argv[3], argv[4]
+            )
         )
 
     if argv[1] in ["via", "nexthop", "gw"]:
@@ -417,11 +480,21 @@ def do_route_get(argv, af, json_print, pretty_json, color):
         return json_dump([route], pretty_json)
 
     print(
-        colorize_inet(color, color_af, route["dst"]) +
-        ((" via " + colorize_inet(color, color_af, route["gateway"])) if "gateway" in route else "") +
-        " dev " + colorize_ifname(color, route["dev"]) +
-        ((" src " + colorize_inet(color, color_af, route["prefsrc"])) if "prefsrc" in route else "") +
-        " uid " + str(route["uid"])
+        colorize_inet(color, color_af, route["dst"])
+        + (
+            (" via " + colorize_inet(color, color_af, route["gateway"]))
+            if "gateway" in route
+            else ""
+        )
+        + " dev "
+        + colorize_ifname(color, route["dev"])
+        + (
+            (" src " + colorize_inet(color, color_af, route["prefsrc"]))
+            if "prefsrc" in route
+            else ""
+        )
+        + " uid "
+        + str(route["uid"])
     )
 
     return True
@@ -430,13 +503,6 @@ def do_route_get(argv, af, json_print, pretty_json, color):
 # Addr Module
 @help_msg(do_help_addr)
 def do_addr(argv, af, json_print, pretty_json, color, brief):
-    # Handle -brief flag appearing after subcommand (e.g. ip addr -br show)
-    for a in argv[:]:
-        if a.startswith("-b") and "-brief".startswith(a):
-            argv.remove(a)
-            brief = True
-            break
-
     if not argv:
         argv.append("show")
 
@@ -455,7 +521,9 @@ def do_addr(argv, af, json_print, pretty_json, color, brief):
 
 
 def do_addr_show(argv, af, json_print, pretty_json, color, brief):
-    return link_addr_show(argv, af, json_print, pretty_json, color, True, brief)
+    return link_addr_show(
+        argv, af, json_print, pretty_json, color, True, brief
+    )
 
 
 def do_addr_add(argv, af):
@@ -509,13 +577,6 @@ def do_addr_del(argv, af):
 # Link module
 @help_msg(do_help_link)
 def do_link(argv, af, json_print, pretty_json, color, brief):
-    # Handle -brief flag appearing after subcommand (e.g. ip link -br show)
-    for a in argv[:]:
-        if a.startswith("-b") and "-brief".startswith(a):
-            argv.remove(a)
-            brief = True
-            break
-
     if not argv:
         argv.append("show")
 
@@ -531,7 +592,9 @@ def do_link(argv, af, json_print, pretty_json, color, brief):
 
 
 def do_link_show(argv, af, json_print, pretty_json, color, brief):
-    return link_addr_show(argv, af, json_print, pretty_json, color, False, brief)
+    return link_addr_show(
+        argv, af, json_print, pretty_json, color, False, brief
+    )
 
 
 def do_link_set(argv, af):
@@ -681,11 +744,21 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
 
     for nb in neighs:
         print(
-            colorize_inet(color, "inet6" if ":" in nb["dst"] else "inet", nb["dst"]) +
-            ("" if nb["dev"] is None else " dev " + colorize_ifname(color, nb["dev"])) +
-            ("" if "lladdr" not in nb else " lladdr " + colorize_mac(color, nb["lladdr"])) +
-            (" router" if "router" in nb else "") +
-            " %s" % (nb["state"][0])
+            colorize_inet(
+                color, "inet6" if ":" in nb["dst"] else "inet", nb["dst"]
+            )
+            + (
+                ""
+                if nb["dev"] is None
+                else " dev " + colorize_ifname(color, nb["dev"])
+            )
+            + (
+                ""
+                if "lladdr" not in nb
+                else " lladdr " + colorize_mac(color, nb["lladdr"])
+            )
+            + (" router" if "router" in nb else "")
+            + " %s" % (nb["state"][0])
         )
 
     return True
@@ -733,7 +806,7 @@ def main(argv):
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
-        argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
+        argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
         # Process options
         if argv[0] == "-6":
             af = 6
@@ -741,14 +814,16 @@ def main(argv):
         elif argv[0] == "-4":
             af = 4
             argv.pop(0)
-        elif "-brief".startswith(argv[0]) or argv[0] == "-br":
+        elif "-brief".startswith(argv[0]):
             brief = True
             argv.pop(0)
         elif "-color".startswith(argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
             color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
             if color_mode not in ["never", "always", "auto"]:
-                perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
+                perror(
+                    'Option "{}" is unknown, try "ip -help".'.format(argv[0])
+                )
                 exit(255)
             argv.pop(0)
         elif "-json".startswith(argv[0]):
@@ -776,7 +851,9 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, af, json_print, pretty_json, color_scheme, brief)
+            return cmd_func(
+                argv, af, json_print, pretty_json, color_scheme, brief
+            )
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
     exit(1)

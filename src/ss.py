@@ -259,10 +259,6 @@ def main(argv):
         else:
             perror(f'Option "{argv[0]}" is unknown, try "ss -help".')
             exit(255)
-    
-    # Handle positional 'help' argument
-    if argv and argv[0] == "help":
-        return do_help(None, json_print, pretty_json, None)
 
     # Get color scheme
     color_scheme = get_color_scheme(color_mode, json_print)

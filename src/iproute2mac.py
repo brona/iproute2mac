@@ -265,7 +265,7 @@ def _check_enable_color(color, json):
         return any(term.startswith(t) for t in color_terms)
 
 
-def colorize(scheme, attr, text):
+def colorize(scheme, attr, text, ljust=0):
     """
     Wraps text with color according to scheme and attribute type.
 
@@ -273,12 +273,13 @@ def colorize(scheme, attr, text):
         scheme (str): "none", "dark" or "light"
         attr (str): Attribute type, see COLOR_ATTR
         text (str): Text to colorize
+        ljust (int): Left-justified space padding length
 
     Returns:
         str: Colorized text
     """
     if scheme == "none" or scheme is None:
-        return text
+        return text.ljust(ljust)
 
     if attr not in _COLOR_ATTR:
         raise ValueError("Invalid color attribute")
@@ -288,40 +289,40 @@ def colorize(scheme, attr, text):
     else:
         color = _ATTR_COLORS_DARK[attr]
 
-    return f"{color}{text}{C_CLEAR}"
+    return f"{color}{text}{C_CLEAR}" + (" " * max(0, ljust - len(text)))
 
 
-def colorize_ifname(scheme, ifname):
-    return colorize(scheme, COLOR_IFNAME, ifname)
+def colorize_ifname(scheme, ifname, ljust=0):
+    return colorize(scheme, COLOR_IFNAME, ifname, ljust)
 
 
-def colorize_mac(scheme, mac):
-    return colorize(scheme, COLOR_MAC, mac)
+def colorize_mac(scheme, mac, ljust=0):
+    return colorize(scheme, COLOR_MAC, mac, ljust=0)
 
 
-def colorize_inet(scheme, af, inet):
+def colorize_inet(scheme, af, inet, ljust=0):
     """
     Matches behavior of ifa_family_color() for addresses.
     But skips coloring when inet is default.
     """
     if inet == "default":
-        return inet
+        return str(inet).ljust(ljust)
 
     if af == "inet":
-        return colorize(scheme, COLOR_INET, inet)
+        return colorize(scheme, COLOR_INET, inet, ljust)
     elif af == "inet6":
-        return colorize(scheme, COLOR_INET6, inet)
+        return colorize(scheme, COLOR_INET6, inet, ljust)
     else:
-        return inet
+        return str(inet).ljust(ljust)
 
 
-def colorize_op_state(scheme, state):
+def colorize_op_state(scheme, state, ljust=0):
     """
     Matches behavior of oper_state_color() for states.
     """
     if state == "UP":
-        return colorize(scheme, COLOR_OPERSTATE_UP, state)
+        return colorize(scheme, COLOR_OPERSTATE_UP, state, ljust)
     elif state == "DOWN":
-        return colorize(scheme, COLOR_OPERSTATE_DOWN, state)
+        return colorize(scheme, COLOR_OPERSTATE_DOWN, state, ljust)
     else:
-        return state
+        return str(state).ljust(ljust)
