@@ -59,6 +59,12 @@ $ip_cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
 $ip_cmd route show
 
+$ip_cmd route show default
+
+$ip_cmd route show exact default
+
+! $ip_cmd route show match unimplemented
+
 $ip_cmd -c route show
 
 $ip_cmd -j route show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
