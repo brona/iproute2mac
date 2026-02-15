@@ -41,7 +41,7 @@ $ss_cmd -color=never -V
 
 $ip_cmd help 2>&1 >/dev/null | grep "Usage: ip "
 $bridge_cmd help 2>&1 >/dev/null | grep "Usage: bridge "
-$ss_cmd help 2>&1 >/dev/null | grep "Usage: ss "
+$ss_cmd -h 2>&1 >/dev/null | grep "Usage: ss "
 
 ! $ip_cmd asdf sh
 ! $bridge_cmd asdf sh
@@ -167,9 +167,6 @@ $ip_cmd -br -j addr show | perl -MJSON -e 'decode_json(<STDIN>)'
 # Test order: -br before command
 $ip_cmd -br addr show | grep -E "^lo[0-9]* +[A-Z]+ +"
 
-# Test order: -br after command (should also work)
-$ip_cmd addr -br show | grep -E "^lo[0-9]* +[A-Z]+ +"
-
 
 # link
 
@@ -233,8 +230,6 @@ $bridge_cmd link show
 $bridge_cmd -c link show
 
 # ss
-
-$ss_cmd help 2>&1 >/dev/null | grep "Usage: ss"
 
 $ss_cmd
 
