@@ -11,6 +11,7 @@
 """
 
 from iproute2mac import *
+from operator import itemgetter
 import ipaddress
 import os
 import re
@@ -91,7 +92,7 @@ def parse_ifconfig(res, af, address):
     if count > 1:
         links.append(link)
 
-    return links
+    return sorted(links, key=itemgetter("ifindex"))
 
 
 def link_addr_show(
