@@ -250,7 +250,7 @@ def do_help(
 
 
 def do_help_route():
-    perror("Usage: ip route list")
+    perror("Usage: ip route list [[exact] PREFIX]")
     perror("       ip route get ADDRESS")
     perror("       ip route { add | del | replace } ROUTE")
     perror("       ip route flush cache")
@@ -288,9 +288,10 @@ def do_help_neigh():
 @help_msg(do_help_route)
 def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
     if not argv or (
-        any_startswith(["show", "lst", "list"], argv[0]) and len(argv) == 1
+        any_startswith(["show", "lst", "list"], argv[0]) and len(argv) <= 3
     ):
-        return do_route_list(af, json_print, pretty_json, color)
+        argv.pop(0)
+        return do_route_list(argv, af, json_print, pretty_json, color)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
         return do_route_get(argv, af, json_print, pretty_json, color)
@@ -311,7 +312,18 @@ def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
     return True
 
 
-def do_route_list(af, json_print, pretty_json, color):
+def do_route_list(argv, af, json_print, pretty_json, color):
+    # argv can have SELECTOR = [[exact] PREFIX]
+    argc = len(argv)
+    if argc == 0:
+        exact = ""
+    elif argc == 1:
+        exact = argv[0]
+    elif argc == 2 and argv[0] == "exact":
+        exact = argv[1]
+    else:
+        return False
+
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
     status, res = subprocess.getstatusoutput(
@@ -349,6 +361,9 @@ def do_route_list(af, json_print, pretty_json, color):
             routes.append(
                 {"dst": target, "gateway": gw, "dev": dev, "flags": []}
             )
+
+    if exact:
+        routes = [route for route in routes if route.get("dst") == exact]
 
     if json_print:
         return json_dump(routes, pretty_json)

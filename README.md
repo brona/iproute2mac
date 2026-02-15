@@ -89,6 +89,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * List IPv6 addresses `ip -6 route`
   * Flush route cache (no-op on MacOS) `ip route flush cache`
   * Flush routes `ip route flush table main`
+  * Match for specific route `ip route show default`
   * Get route for destination `ip route get 8.8.8.8`
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Add default route `ip route add default nexthop 10.0.0.1`
@@ -126,6 +127,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 
 - `ip addr` and `ip link` returns results in `ifindex` order (https://github.com/brona/iproute2mac/issues/72)
 - `ip addr` and `ip link` support `up` filter (https://github.com/brona/iproute2mac/issues/71)
+- Added `ip route list [[exact] PREFIX` selector (https://github.com/brona/iproute2mac/issues/66)
 
 </details>
 
