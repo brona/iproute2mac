@@ -52,11 +52,10 @@ def parse_ifconfig(res):
                 )[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif re.match(r"^\s+status: ", r):
-                match re.findall(r"status: (\w+)", r)[0]:
-                    case "active":
-                        link["operstate"] = "UP"
-                    case "inactive":
-                        link["operstate"] = "DOWN"
+                match = re.search(r"status: (\w+)", r)
+                if match:
+                    status = match.group(1)
+                    link["operstate"] = "UP" if status == "active" else "DOWN"
             elif re.match(r"^\s+maxage ", r):
                 (maxage, holdcnt, proto, maxaddr, timeout) = re.findall(
                     r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)",
