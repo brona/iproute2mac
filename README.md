@@ -57,8 +57,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * `bridge help`
   * `bridge link help`
   * `ss help`
+* Options
+  * Brief output mode: `ip -br link` or `ip -br addr`
 * Link module (Interfaces)
   * List local interfaces `ip link`
+  * List interfaces in brief format `ip -br link`
   * Show one interface `ip link show en0`
   * Shutdown interface `ip link set dev en0 down`
   * Start interface `ip link set dev en0 up`
@@ -78,6 +81,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * IPv6 (NDP) neighbours are being flushed for all interfaces
 * Address module
   * List all addresses `ip addr`
+  * List all addresses in brief format `ip -br addr`
   * List IPv4 addresses `ip -4 addr`
   * List IPv6 addresses `ip -6 addr`
   * Add address to interface `ip addr add 10.0.0.5/24 dev en0`
