@@ -227,7 +227,10 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 ! $bridge_cmd link help 2>&1 >/dev/null | grep "Usage: bridge link"
 
 $bridge_cmd link show
+
 $bridge_cmd -c link show
+
+$bridge_cmd -o link show
 
 # ss
 

@@ -99,10 +99,14 @@ def parse_ifconfig(res):
 
 
 # Help
-def do_help(argv=None, json_print=None, pretty_json=None, color=None):
+def do_help(
+    argv=None, json_print=None, pretty_json=None, color=None, oneline=None
+):
     perror("Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }")
     perror("where  OBJECT := { link }")
-    perror("       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] }")
+    perror(
+        "       OPTIONS := { -V[ersion] | -j[son] | -p[retty] | -c[olor] | -o[neline] }"
+    )
     perror(HELP_ADDENDUM)
     exit(255)
 
@@ -114,13 +118,13 @@ def do_help_link():
 
 # Link module
 @help_msg(do_help_link)
-def do_link(argv, json_print, pretty_json, color):
+def do_link(argv, json_print, pretty_json, color, oneline):
     if not argv:
         argv.append("show")
 
     if any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
-        return do_link_show(argv, json_print, pretty_json, color)
+        return do_link_show(argv, json_print, pretty_json, color, oneline)
     elif "set".startswith(argv[0]):
         argv.pop(0)
         return do_link_set(argv)
@@ -129,7 +133,7 @@ def do_link(argv, json_print, pretty_json, color):
     return True
 
 
-def do_link_show(argv, json_print, pretty_json, color):
+def do_link_show(argv, json_print, pretty_json, color, oneline):
     if len(argv) > 1:
         if argv[0] != "dev":
             return False
@@ -172,20 +176,24 @@ def do_link_show(argv, json_print, pretty_json, color):
     if json_print:
         return json_dump(bridges, pretty_json)
 
-    for b in bridges:
-        print(
-            "%d: %s: <%s> mtu %d master %s state %s priority %d cost %d"
-            % (
-                b["ifindex"],
-                colorize_ifname(color, b["ifname"]),
-                ",".join(b["flags"]),
-                b["mtu"],
-                b["master"],
-                b["state"],
-                b["priority"],
-                b["cost"],
-            )
+    lines = [
+        "%d: %s: <%s> mtu %d master %s state %s priority %d cost %d"
+        % (
+            b["ifindex"],
+            colorize_ifname(color, b["ifname"]),
+            ",".join(b["flags"]),
+            b["mtu"],
+            b["master"],
+            b["state"],
+            b["priority"],
+            b["cost"],
         )
+        for b in bridges
+    ]
+
+    # oneline doesn't do anything in this case
+    for l in lines:
+        print(l)
 
     return True
 
@@ -208,6 +216,7 @@ def main(argv):
     json_print = False
     pretty_json = False
     color_mode = "never"
+    oneline = False
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
@@ -227,6 +236,9 @@ def main(argv):
             argv.pop(0)
         elif "-pretty".startswith(argv[0]):
             pretty_json = True
+            argv.pop(0)
+        elif "-oneline".startswith(argv[0]):
+            oneline = True
             argv.pop(0)
         elif "-Version".startswith(argv[0]):
             print("iproute2mac, v" + VERSION)
@@ -249,7 +261,9 @@ def main(argv):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
-            return cmd_func(argv, json_print, pretty_json, color_scheme)
+            return cmd_func(
+                argv, json_print, pretty_json, color_scheme, oneline
+            )
 
     perror('Object "{}" is unknown, try "bridge help".'.format(argv[0]))
     exit(1)
