@@ -145,7 +145,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 </details>
 
 <details>
-  <summary><b>v1.0 ~ v1.4</b></summary>
+  <summary><b>v1.0 ~ v1.5</b></summary>
   <details open>
     <summary><b>v1.5.4</b></summary>
 
