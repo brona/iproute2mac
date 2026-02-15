@@ -35,7 +35,7 @@ def parse_ifconfig(res):
                 "flags": flags,
                 "mtu": int(mtu),
                 "operstate": "UNKNOWN",
-                "link_type": "unknown"
+                "link_type": "unknown",
             }
             if "LOOPBACK" in flags:
                 link["link_type"] = "loopback"
@@ -48,7 +48,8 @@ def parse_ifconfig(res):
             if re.match(r"^\s+ether ", r):
                 link["link_type"] = "ether"
                 link["address"] = re.findall(
-                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r)[0]
+                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r
+                )[0]
                 link["broadcast"] = "ff:ff:ff:ff:ff:ff"
             elif re.match(r"^\s+status: ", r):
                 match re.findall(r"status: (\w+)", r)[0]:
@@ -59,33 +60,40 @@ def parse_ifconfig(res):
             elif re.match(r"^\s+maxage ", r):
                 (maxage, holdcnt, proto, maxaddr, timeout) = re.findall(
                     r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)",
-                    r)[0]
+                    r,
+                )[0]
                 link["bridge"] = {
                     "maxage": int(maxage),
                     "holdcnt": int(holdcnt),
                     "proto": proto,
                     "maxaddr": int(maxaddr),
                     "timeout": int(timeout),
-                    "members": []
+                    "members": [],
                 }
             elif re.match(r"^\s+member: ", r):
                 (ifname, flags) = re.findall(
-                    r"member: (\w+) flags=[\da-f]+<(.*)>", r)[0]
+                    r"member: (\w+) flags=[\da-f]+<(.*)>", r
+                )[0]
                 flags = flags.split(",")
-                link["bridge"]["members"].append({
-                    "ifname": ifname,
-                    "flags": flags,
-                })
+                link["bridge"]["members"].append(
+                    {
+                        "ifname": ifname,
+                        "flags": flags,
+                    }
+                )
             elif re.match(r"^\s+ifmaxaddr ", r):
                 (ifmaxaddr, ifindex, priority, cost) = re.findall(
                     r"ifmaxaddr (\d+) port (\d+) priority (\d+) path cost (\d+)",
-                    r)[0]
-                link["bridge"]["members"][-1].update({
-                    "ifmaxaddr": int(ifmaxaddr),
-                    "ifindex": int(ifindex),
-                    "priority": int(priority),
-                    "cost": int(cost)
-                })
+                    r,
+                )[0]
+                link["bridge"]["members"][-1].update(
+                    {
+                        "ifmaxaddr": int(ifmaxaddr),
+                        "ifindex": int(ifindex),
+                        "priority": int(priority),
+                        "cost": int(cost),
+                    }
+                )
 
     if count > 1:
         links.append(link)
@@ -135,9 +143,7 @@ def do_link_show(argv, json_print, pretty_json, color):
     else:
         dev = None
 
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " -v -a 2>/dev/null"
-    )
+    status, res = subprocess.getstatusoutput(IFCONFIG + " -v -a 2>/dev/null")
     if status:  # unix status
         if res == "":
             perror(param + " not found")
@@ -149,35 +155,40 @@ def do_link_show(argv, json_print, pretty_json, color):
     links = parse_ifconfig(res)
 
     for master in [l for l in links if "bridge" in l]:
-        for slave in master["bridge"].get("members",[]):
+        for slave in master["bridge"].get("members", []):
             if dev and slave["ifname"] != dev:
                 continue
             link = [l for l in links if l["ifname"] == slave["ifname"]][0]
-            bridges.append({
-                "ifindex": slave["ifindex"],
-                "ifname": slave["ifname"],
-                "flags": link["flags"],
-                "mtu": link["mtu"],
-                "master": master["ifname"],
-                "state": "forwarding", #FIXME: how to ensure it is forwarding?
-                "priority": slave["priority"],
-                "cost": slave["cost"]
-            })
+            bridges.append(
+                {
+                    "ifindex": slave["ifindex"],
+                    "ifname": slave["ifname"],
+                    "flags": link["flags"],
+                    "mtu": link["mtu"],
+                    "master": master["ifname"],
+                    "state": "forwarding",  # FIXME: how to ensure it is forwarding?
+                    "priority": slave["priority"],
+                    "cost": slave["cost"],
+                }
+            )
 
     if json_print:
         return json_dump(bridges, pretty_json)
 
     for b in bridges:
-        print("%d: %s: <%s> mtu %d master %s state %s priority %d cost %d" % (
-            b["ifindex"],
-            colorize_ifname(color, b["ifname"]),
-            ",".join(b["flags"]),
-            b["mtu"],
-            b["master"],
-            b["state"],
-            b["priority"],
-            b["cost"]
-        ))
+        print(
+            "%d: %s: <%s> mtu %d master %s state %s priority %d cost %d"
+            % (
+                b["ifindex"],
+                colorize_ifname(color, b["ifname"]),
+                ",".join(b["flags"]),
+                b["mtu"],
+                b["master"],
+                b["state"],
+                b["priority"],
+                b["cost"],
+            )
+        )
 
     return True
 
@@ -203,13 +214,15 @@ def main(argv):
 
     while argv and argv[0].startswith("-"):
         # Turn --opt into -opt
-        argv[0] = argv[0][1 if argv[0][1] == '-' else 0:]
+        argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
         # Process options
         if "-color".startswith(argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
             color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
             if color_mode not in ["never", "always", "auto"]:
-                perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
+                perror(
+                    'Option "{}" is unknown, try "ip -help".'.format(argv[0])
+                )
                 exit(255)
             argv.pop(0)
         elif "-json".startswith(argv[0]):
@@ -224,8 +237,9 @@ def main(argv):
         elif "-help".startswith(argv[0]):
             return False
         else:
-            perror('Option "{}" is unknown, try "bridge help".'.format(
-                argv[0]))
+            perror(
+                'Option "{}" is unknown, try "bridge help".'.format(argv[0])
+            )
             exit(255)
 
     if not argv:

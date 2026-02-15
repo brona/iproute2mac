@@ -161,7 +161,15 @@ COLOR_INET6 = 3
 COLOR_OPERSTATE_UP = 4
 COLOR_OPERSTATE_DOWN = 5
 COLOR_NONE = 6
-_COLOR_ATTR = [COLOR_IFNAME, COLOR_MAC, COLOR_INET, COLOR_INET6, COLOR_OPERSTATE_UP, COLOR_OPERSTATE_DOWN, COLOR_NONE]
+_COLOR_ATTR = [
+    COLOR_IFNAME,
+    COLOR_MAC,
+    COLOR_INET,
+    COLOR_INET6,
+    COLOR_OPERSTATE_UP,
+    COLOR_OPERSTATE_DOWN,
+    COLOR_NONE,
+]
 
 
 # light background
@@ -173,8 +181,8 @@ _ATTR_COLORS_LIGHT = [
     C_BLUE,
     C_GREEN,
     C_RED,
-    C_CLEAR
-    ]
+    C_CLEAR,
+]
 
 
 # dark background
@@ -186,8 +194,8 @@ _ATTR_COLORS_DARK = [
     C_BOLD_BLUE,
     C_BOLD_GREEN,
     C_BOLD_RED,
-    C_CLEAR
-    ]
+    C_CLEAR,
+]
 
 
 def get_color_scheme(color_mode, json):
@@ -214,7 +222,7 @@ def get_color_scheme(color_mode, json):
         c = p.split(";")[-1]
         if c.isnumeric():
             c = int(c)
-            if (c >= 0 and c <=6) or c == 8:
+            if (c >= 0 and c <= 6) or c == 8:
                 return "dark"
     return "light"
 
@@ -242,7 +250,7 @@ def _check_enable_color(color, json):
         return True
 
     # Following code implements auto mode
-    if os.getenv('NO_COLOR') is not None:
+    if os.getenv("NO_COLOR") is not None:
         return False
 
     # Not supported if not attached to terminal
@@ -251,17 +259,30 @@ def _check_enable_color(color, json):
 
     try:
         # Use tput to check color support
-        colors = int(subprocess.check_output(['tput', 'colors'],
-                                          stderr=subprocess.DEVNULL).decode().strip())
+        colors = int(
+            subprocess.check_output(
+                ["tput", "colors"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
         return colors >= 8
     except (subprocess.CalledProcessError, ValueError):
         # If tput fails or returns invalid output, fall back to TERM check
-        term = os.getenv('TERM', '')
-        if term == 'dumb':
+        term = os.getenv("TERM", "")
+        if term == "dumb":
             return False
 
-        color_terms = ['xterm', 'xterm-color', 'xterm-256color', 'linux',
-                      'screen', 'screen-256color', 'vt100', 'rxvt']
+        color_terms = [
+            "xterm",
+            "xterm-color",
+            "xterm-256color",
+            "linux",
+            "screen",
+            "screen-256color",
+            "vt100",
+            "rxvt",
+        ]
         return any(term.startswith(t) for t in color_terms)
 
 
