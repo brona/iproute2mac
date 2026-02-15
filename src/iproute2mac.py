@@ -20,7 +20,7 @@ import os
 
 
 # Version
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 
 # Utilities
 SUDO = "/usr/bin/sudo"

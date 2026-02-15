@@ -124,6 +124,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
+</details>
+
+<details open>
+  <summary><b>v1.7.0</b></summary>
+
 - Added `ss` command (https://github.com/brona/iproute2mac/issues/20 ,https://github.com/brona/iproute2mac/pull/70, thanks [@luoling8192](https://github.com/luoling8192))
 - Added `-brief` option for link and address modules (https://github.com/brona/iproute2mac/issues/42 ,https://github.com/brona/iproute2mac/pull/69 thanks [@xraystyle](https://github.com/xraystyle))
 - Added `-oneline` option for `link` and `addr` modules (https://github.com/brona/iproute2mac/issues/17 ,https://github.com/brona/iproute2mac/pull/62 thanks [@waketzheng](https://github.com/waketzheng))
@@ -139,46 +144,46 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 
 </details>
 
-<details open>
-  <summary><b>v1.5.4</b></summary>
-
-- Fixed https://github.com/brona/iproute2mac/issues/56 address parsing for ptp links
-
-</details>
-
-<details open>
-  <summary><b>v1.5.3</b></summary>
-
-- Fixed https://github.com/brona/iproute2mac/issues/21 `--color` option parsing
-
-</details>
-
-<details open>
-  <summary><b>v1.5.2</b></summary>
-
-- Fixed https://github.com/brona/iproute2mac/issues/57
-
-</details>
-
-<details open>
-  <summary><b>v1.5.1</b></summary>
-
-- Fixed https://github.com/brona/iproute2mac/issues/56
-
-</details>
-
-<details open>
-  <summary><b>v1.5.0</b></summary>
-
-- Added `-json` option
-  (https://github.com/brona/iproute2mac/issues/49)
-- Added `bridge` command
-- Internal reworking of `ip ... show` functions
-
-</details>
-
 <details>
   <summary><b>v1.0 ~ v1.4</b></summary>
+  <details open>
+    <summary><b>v1.5.4</b></summary>
+
+  - Fixed https://github.com/brona/iproute2mac/issues/56 address parsing for ptp links
+
+  </details>
+
+  <details open>
+    <summary><b>v1.5.3</b></summary>
+
+  - Fixed https://github.com/brona/iproute2mac/issues/21 `--color` option parsing
+
+  </details>
+
+  <details open>
+    <summary><b>v1.5.2</b></summary>
+
+  - Fixed https://github.com/brona/iproute2mac/issues/57
+
+  </details>
+
+  <details open>
+    <summary><b>v1.5.1</b></summary>
+
+  - Fixed https://github.com/brona/iproute2mac/issues/56
+
+  </details>
+
+  <details open>
+    <summary><b>v1.5.0</b></summary>
+
+  - Added `-json` option
+    (https://github.com/brona/iproute2mac/issues/49)
+  - Added `bridge` command
+  - Internal reworking of `ip ... show` functions
+
+  </details>
+
   <details open>
     <summary><b>v1.4.2</b></summary>
 
