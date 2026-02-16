@@ -57,6 +57,8 @@ $ss_cmd -h 2>&1 >/dev/null | grep "Usage: ss "
 
 $ip_cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
 
+$ip_cmd route
+
 $ip_cmd route show
 
 $ip_cmd route show default
@@ -126,6 +128,8 @@ $ip_cmd route delete blackhole $ip_dest
 
 $ip_cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
 
+$ip_cmd address
+
 $ip_cmd address show
 
 $ip_cmd address show up | grep '127.0.0.1'
@@ -190,6 +194,8 @@ $ip_cmd -c link show
 
 $ip_cmd -o link show
 
+$ip_cmd link
+
 $ip_cmd link show | grep mtu
 
 $ip_cmd link show up | grep lo0
@@ -228,6 +234,8 @@ $ip_cmd -br -j link show | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd nei help 2>&1 >/dev/null | grep "Usage: ip neighbour"
 
+$ip_cmd nei
+
 $ip_cmd nei show
 
 $ip_cmd -c nei show
@@ -243,6 +251,8 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 ! $bridge_cmd help
 
 ! $bridge_cmd link help 2>&1 >/dev/null | grep "Usage: bridge link"
+
+$bridge_cmd link
 
 $bridge_cmd link show
 

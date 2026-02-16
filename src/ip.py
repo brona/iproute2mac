@@ -290,7 +290,8 @@ def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
     if not argv or (
         any_startswith(["show", "lst", "list"], argv[0]) and len(argv) <= 3
     ):
-        argv.pop(0)
+        if argv:
+            argv.pop(0)
         return do_route_list(argv, af, json_print, pretty_json, color)
     elif "get".startswith(argv[0]) and len(argv) == 2:
         argv.pop(0)
