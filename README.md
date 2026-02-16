@@ -128,6 +128,13 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 </details>
 
 <details open>
+  <summary><b>v1.7.2</b></summary>
+
+- Fixed `ip route` bug introduced in v1.7.1
+
+</details>
+
+<details open>
   <summary><b>v1.7.1</b></summary>
 
 - `ip addr` and `ip link` returns results in `ifindex` order (https://github.com/brona/iproute2mac/issues/72)
