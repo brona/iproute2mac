@@ -130,7 +130,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>v1.7.2</b></summary>
 
-- Fixed `ip route` bug introduced in v1.7.1
+- Fixed `ip route` crashing with `IndexError: pop from empty list` bug introduced in v1.7.1
 
 </details>
 
