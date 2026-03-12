@@ -3,7 +3,7 @@
 
 """
   iproute2mac
-  CLI wrapper for basic network utilites on Mac OS X.
+  CLI wrapper for basic network utilities on Mac OS X.
   Homepage: https://github.com/brona/iproute2mac
 
   The MIT License (MIT)
@@ -90,7 +90,7 @@ def any_startswith(words, test):
     return False
 
 
-# Handles passsing return value, error messages and program exit on error
+# Handles passing return value, error messages and program exit on error
 def help_msg(help_func):
     def wrapper(func):
         def inner(*args, **kwargs):
@@ -201,7 +201,7 @@ def get_color_scheme(color_mode, json):
     """
     To be called from main, checks if coloring shoduld be enabled and returns applicable color scheme.
 
-    iproute2 doesn't detect backround color using OSC 11, instead it reads legacy COLORFGBG env var which is rarely used.
+    iproute2 doesn't detect background color using OSC 11, instead it reads legacy COLORFGBG env var which is rarely used.
 
     From iproute2 source:
         COLORFGBG environment variable usually contains either two or three
