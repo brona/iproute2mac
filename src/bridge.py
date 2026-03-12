@@ -220,8 +220,15 @@ def main(argv):
     oneline = False
 
     while argv and argv[0].startswith("-"):
+        if argv[0] == "-":
+            do_help()
+        elif argv[0] == "--":
+            argv.pop(0)
+            break
         # Turn --opt into -opt
-        argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
+        elif argv[0][1] == "-":
+            argv[0] = argv[0][1:]
+
         # Process options
         if "-color".startswith(argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
