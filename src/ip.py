@@ -270,11 +270,11 @@ def do_help_addr():
 
 
 def do_help_link():
-    perror("Usage: ip link show [ DEVICE ] [up]")
-    perror("       ip link set dev DEVICE")
+    perror("Usage: ip link set dev DEVICE")
     perror("                [ { up | down } ]")
     perror("                [ address { LLADDR | factory | random } ]")
     perror("                [ mtu MTU ]")
+    perror("       ip link show [ DEVICE ] [up]")
     exit(255)
 
 
@@ -293,19 +293,19 @@ def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
         if argv:
             argv.pop(0)
         return do_route_list(argv, af, json_print, pretty_json, color)
-    elif "get".startswith(argv[0]) and len(argv) == 2:
+    elif strict_startswith("get", argv[0]) and len(argv) == 2:
         argv.pop(0)
         return do_route_get(argv, af, json_print, pretty_json, color)
-    elif "add".startswith(argv[0]) and len(argv) >= 3:
+    elif strict_startswith("add", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_add(argv, af)
-    elif "delete".startswith(argv[0]) and len(argv) >= 2:
+    elif strict_startswith("delete", argv[0]) and len(argv) >= 2:
         argv.pop(0)
         return do_route_del(argv, af)
-    elif "replace".startswith(argv[0]) and len(argv) >= 3:
+    elif strict_startswith("replace", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_route_del(argv, af) and do_route_add(argv, af)
-    elif "flush".startswith(argv[0]) and len(argv) >= 1:
+    elif strict_startswith("flush", argv[0]) and len(argv) >= 1:
         argv.pop(0)
         return do_route_flush(argv, af)
     else:
@@ -552,10 +552,10 @@ def do_addr(argv, af, json_print, pretty_json, color, brief, oneline):
         return do_addr_show(
             argv, af, json_print, pretty_json, color, brief, oneline
         )
-    elif "add".startswith(argv[0]) and len(argv) >= 3:
+    elif strict_startswith("add", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
-    elif "delete".startswith(argv[0]) and len(argv) >= 3:
+    elif strict_startswith("delete", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_del(argv, af)
     else:
@@ -623,14 +623,14 @@ def do_link(argv, af, json_print, pretty_json, color, brief, oneline):
     if not argv:
         argv.append("show")
 
-    if any_startswith(["show", "lst", "list"], argv[0]):
+    if strict_startswith("set", argv[0]):
+        argv.pop(0)
+        return do_link_set(argv, af)
+    elif any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_link_show(
             argv, af, json_print, pretty_json, color, brief, oneline
         )
-    elif "set".startswith(argv[0]):
-        argv.pop(0)
-        return do_link_set(argv, af)
     else:
         return False
     return True
@@ -643,13 +643,16 @@ def do_link_show(argv, af, json_print, pretty_json, color, brief, oneline):
 
 
 def do_link_set(argv, af):
-    if not argv:
+    if (
+        not argv
+        or not argv[0]
+        or (argv[0] == "dev" and (len(argv) < 2 or not argv[1]))
+    ):
+        perror('Not enough information: "dev" argument is required.')
         return False
-    elif argv[0] == "dev":
-        argv.pop(0)
 
-    if len(argv) < 2:
-        return False
+    if argv[0] == "dev":
+        argv.pop(0)
 
     dev = argv[0]
 
@@ -699,7 +702,7 @@ def do_neigh(argv, af, json_print, pretty_json, color, brief, oneline):
     if any_startswith(["show", "list", "lst"], argv[0]) and len(argv) <= 5:
         argv.pop(0)
         return do_neigh_show(argv, af, json_print, pretty_json, color)
-    elif "flush".startswith(argv[0]):
+    elif strict_startswith("flush", argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
     else:
@@ -867,16 +870,16 @@ def main(argv):
         elif argv[0] == "-4":
             af = 4
             argv.pop(0)
-        elif "-batch".startswith(argv[0]):
-            perror("iproute2mac: 'ip -batch' is not implemented")
+        elif strict_startswith("-batch", argv[0]):
+            perror('iproute2mac: "ip -batch" is not implemented')
             exit(255)
-        elif "-brief".startswith(argv[0]):
+        elif strict_startswith("-brief", argv[0]):
             brief = True
             argv.pop(0)
-        elif "-oneline".startswith(argv[0]):
+        elif strict_startswith("-oneline", argv[0]):
             oneline = True
             argv.pop(0)
-        elif "-color".startswith(argv[0].split("=")[0]):
+        elif strict_startswith("-color", argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
             color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
             if color_mode not in ["never", "always", "auto"]:
@@ -885,16 +888,16 @@ def main(argv):
                 )
                 exit(255)
             argv.pop(0)
-        elif "-json".startswith(argv[0]):
+        elif strict_startswith("-json", argv[0]):
             json_print = True
             argv.pop(0)
-        elif "-pretty".startswith(argv[0]):
+        elif strict_startswith("-pretty", argv[0]):
             pretty_json = True
             argv.pop(0)
-        elif "-Version".startswith(argv[0]):
+        elif strict_startswith("-Version", argv[0]):
             print("iproute2mac, v" + VERSION)
             exit(0)
-        elif "-help".startswith(argv[0]):
+        elif strict_startswith("-help", argv[0]):
             return False
         else:
             perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
@@ -906,7 +909,7 @@ def main(argv):
     color_scheme = get_color_scheme(color_mode, json_print)
 
     for cmd, cmd_func in cmds:
-        if cmd.startswith(argv[0]):
+        if strict_startswith(cmd, argv[0]):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*

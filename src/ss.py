@@ -229,7 +229,7 @@ def main(argv):
         argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
 
         # Process options
-        if "-color".startswith(argv[0].split("=")[0]):
+        if strict_startswith("-color", argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
             color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
             if color_mode not in ["never", "always", "auto"]:
@@ -238,33 +238,33 @@ def main(argv):
                 )
                 exit(255)
             argv.pop(0)
-        elif "-json".startswith(argv[0]):
+        elif strict_startswith("-json", argv[0]):
             json_print = True
             argv.pop(0)
-        elif "-pretty".startswith(argv[0]):
+        elif strict_startswith("-pretty", argv[0]):
             pretty_json = True
             argv.pop(0)
-        elif "-help".startswith(argv[0]):
+        elif strict_startswith("-help", argv[0]):
             return do_help(None, json_print, pretty_json, None)
-        elif "-Version".startswith(argv[0]):
+        elif strict_startswith("-Version", argv[0]):
             print("iproute2mac, v" + VERSION)
             exit(0)
-        elif "-all".startswith(argv[0]):
+        elif strict_startswith("-all", argv[0]):
             all_sockets = True
             argv.pop(0)
-        elif "-listening".startswith(argv[0]):
+        elif strict_startswith("-listening", argv[0]):
             listening = True
             argv.pop(0)
-        elif "-numeric".startswith(argv[0]):
+        elif strict_startswith("-numeric", argv[0]):
             numeric = True
             argv.pop(0)
-        elif "-resolve".startswith(argv[0]):
+        elif strict_startswith("-resolve", argv[0]):
             resolve = True
             argv.pop(0)
-        elif "-processes".startswith(argv[0]):
+        elif strict_startswith("-processes", argv[0]):
             processes = True
             argv.pop(0)
-        elif "-summary".startswith(argv[0]):
+        elif strict_startswith("-summary", argv[0]):
             summary = True
             argv.pop(0)
         elif argv[0] == "-4":
@@ -273,16 +273,16 @@ def main(argv):
         elif argv[0] == "-6":
             ipv6_only = True
             argv.pop(0)
-        elif "-tcp".startswith(argv[0]):
+        elif strict_startswith("-tcp", argv[0]):
             only_tcp = True
             argv.pop(0)
-        elif "-udp".startswith(argv[0]):
+        elif strict_startswith("-udp", argv[0]):
             only_udp = True
             argv.pop(0)
-        elif "-unix".startswith(argv[0]):
+        elif strict_startswith("-unix", argv[0]):
             only_unix = True
             argv.pop(0)
-        elif "-raw".startswith(argv[0]):
+        elif strict_startswith("-raw", argv[0]):
             only_raw = True
             argv.pop(0)
         else:

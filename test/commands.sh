@@ -212,7 +212,7 @@ $ip_cmd li ls | grep mtu
 
 $ip_cmd lin lst | grep mtu
 
-$ip_cmd l s | grep mtu
+! $ip_cmd l s
 
 ! $ip_cmd link asdf
 

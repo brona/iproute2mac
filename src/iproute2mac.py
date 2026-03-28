@@ -83,9 +83,15 @@ def netmask_to_length(mask):
     return bin(int(mask, 16)).count("1")
 
 
+def strict_startswith(value, start):
+    if not start:
+        return False
+    return value.startswith(start)
+
+
 def any_startswith(words, test):
     for word in words:
-        if word.startswith(test):
+        if strict_startswith(word, test):
             return True
     return False
 

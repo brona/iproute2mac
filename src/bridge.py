@@ -123,12 +123,13 @@ def do_link(argv, json_print, pretty_json, color, oneline):
     if not argv:
         argv.append("show")
 
-    if any_startswith(["show", "lst", "list"], argv[0]):
+    if strict_startswith("set", argv[0]):
+        argv.pop(0)
+        perror("iproute2mac: 'bridge link set' is not implemented")
+        exit(255)
+    elif any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_link_show(argv, json_print, pretty_json, color, oneline)
-    elif "set".startswith(argv[0]):
-        argv.pop(0)
-        return do_link_set(argv)
     else:
         return False
     return True
@@ -230,7 +231,7 @@ def main(argv):
             argv[0] = argv[0][1:]
 
         # Process options
-        if "-color".startswith(argv[0].split("=")[0]):
+        if strict_startswith("-color", argv[0].split("=")[0]):
             # 'always' is default if -color is set without any value
             color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
             if color_mode not in ["never", "always", "auto"]:
@@ -239,19 +240,19 @@ def main(argv):
                 )
                 exit(255)
             argv.pop(0)
-        elif "-json".startswith(argv[0]):
+        elif strict_startswith("-json", argv[0]):
             json_print = True
             argv.pop(0)
-        elif "-pretty".startswith(argv[0]):
+        elif strict_startswith("-pretty", argv[0]):
             pretty_json = True
             argv.pop(0)
-        elif "-oneline".startswith(argv[0]):
+        elif strict_startswith("-oneline", argv[0]):
             oneline = True
             argv.pop(0)
-        elif "-Version".startswith(argv[0]):
+        elif strict_startswith("-Version", argv[0]):
             print("iproute2mac, v" + VERSION)
             exit(0)
-        elif "-help".startswith(argv[0]):
+        elif strict_startswith("-help", argv[0]):
             return False
         else:
             perror(
@@ -265,7 +266,7 @@ def main(argv):
     color_scheme = get_color_scheme(color_mode, json_print)
 
     for cmd, cmd_func in cmds:
-        if cmd.startswith(argv[0]):
+        if strict_startswith(cmd, argv[0]):
             argv.pop(0)
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
