@@ -851,8 +851,15 @@ def main(argv):
     oneline = False
 
     while argv and argv[0].startswith("-"):
+        if argv[0] == "-":
+            do_help()
+        elif argv[0] == "--":
+            argv.pop(0)
+            break
         # Turn --opt into -opt
-        argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
+        elif argv[0][1] == "-":
+            argv[0] = argv[0][1:]
+
         # Process options
         if argv[0] == "-6":
             af = 6
@@ -860,6 +867,9 @@ def main(argv):
         elif argv[0] == "-4":
             af = 4
             argv.pop(0)
+        elif "-batch".startswith(argv[0]):
+            perror("iproute2mac: 'ip -batch' is not implemented")
+            exit(255)
         elif "-brief".startswith(argv[0]):
             brief = True
             argv.pop(0)
