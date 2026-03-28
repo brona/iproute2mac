@@ -3,7 +3,7 @@
 
 """
   iproute2mac
-  CLI wrapper for basic network utilites on Mac OS X.
+  CLI wrapper for basic network utilities on Mac OS X.
   Homepage: https://github.com/brona/iproute2mac
 
   The MIT License (MIT)
