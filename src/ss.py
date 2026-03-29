@@ -10,30 +10,11 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
+import argparse
 import subprocess
 import sys
 
 from iproute2mac import *
-
-
-# Help message
-def do_help(argv=None, json_print=None, pretty_json=None, color=None):
-    perror("Usage: ss [ OPTIONS ] [ FILTER ]")
-    perror(
-        "       OPTIONS := { -h[elp] | -V[ersion] | -v[erbose] | -n[umeric] | -r[olve] }"
-    )
-    perror(
-        "                  { -a[ll] | -l[istening] | -o[ptions] | -e[stablished] | -c[onnected] }"
-    )
-    perror(
-        "                  { -p[rocesses] | -i[nfo] | -s[ummary] | -j[son] | -p[retty] | -c[olor][=auto|always|never] }"
-    )
-    perror(
-        "                  { -4 | -6 | -t[cp] | -u[dp] | -w[raw] | -x[unix] }"
-    )
-    perror("       FILTER := [ state TCP-STATE ] [ EXPRESSION ]")
-    perror(HELP_ADDENDUM)
-    exit(255)
 
 
 def parse_netstat(
@@ -195,7 +176,6 @@ def do_summary():
         return False
 
 
-@help_msg(do_help)
 def main(argv):
     """
     Main function for ss command
@@ -206,94 +186,126 @@ def main(argv):
     Returns:
         bool: Success or failure
     """
-    # Options
-    json_print = False
-    pretty_json = False
-    color_mode = "never"
-    all_sockets = False
-    listening = False
-    numeric = False
-    resolve = False
-    processes = False
-    summary = False
-    only_tcp = False
-    only_udp = False
-    only_unix = False
-    only_raw = False
-    ipv4_only = False
-    ipv6_only = False
+    parser = argparse.ArgumentParser(
+        prog="ss",
+        description="Dump socket statistics (iproute2mac wrapper for netstat on macOS).",
+        epilog=HELP_ADDENDUM,
+        usage="ss [ OPTIONS ] [ FILTER ]",
+    )
+    parser.add_argument(
+        "-V",
+        "-v",
+        "--version",
+        action="version",
+        version="iproute2mac, v" + VERSION,
+    )
+    parser.add_argument(
+        "-n",
+        "--numeric",
+        action="store_true",
+        help="Do not try to resolve service names.",
+    )
+    parser.add_argument(
+        "-r",
+        "--resolve",
+        action="store_true",
+        help="Try to resolve numeric address/ports.",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Display both listening and non-listening sockets.",
+    )
+    parser.add_argument(
+        "-l",
+        "--listening",
+        action="store_true",
+        help="Display only listening sockets.",
+    )
+    parser.add_argument(
+        "-p",
+        "--processes",
+        action="store_true",
+        help="Show process using socket.",
+    )
+    parser.add_argument(
+        "-s",
+        "--summary",
+        action="store_true",
+        help="Print summary statistics.",
+    )
+    parser.add_argument(
+        "-4",
+        "--ipv4",
+        action="store_true",
+        help="Display only IP version 4 sockets.",
+    )
+    parser.add_argument(
+        "-6",
+        "--ipv6",
+        action="store_true",
+        help="Display only IP version 6 sockets.",
+    )
+    parser.add_argument(
+        "-t", "--tcp", action="store_true", help="Display TCP sockets."
+    )
+    parser.add_argument(
+        "-u", "--udp", action="store_true", help="Display UDP sockets."
+    )
+    parser.add_argument(
+        "-w", "--raw", action="store_true", help="Display RAW sockets."
+    )
+    parser.add_argument(
+        "-x",
+        "--unix",
+        action="store_true",
+        help="Display Unix domain sockets.",
+    )
 
-    # Process options
-    while argv and argv[0].startswith("-"):
-        # Turn --opt into -opt
-        argv[0] = argv[0][1 if argv[0][1] == "-" else 0 :]
+    # iproute2mac specific options
+    parser.add_argument(
+        "-c",
+        "--color",
+        nargs="?",
+        choices=["never", "always", "auto"],
+        const="always",
+        default="never",
+        help="Colorize output (iproute2mac).",
+    )
+    parser.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        help="Output in JSON format (iproute2mac).",
+    )
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        dest="pretty_json",
+        help="Pretty-print JSON output (iproute2mac).",
+    )
 
-        # Process options
-        if strict_startswith("-color", argv[0].split("=")[0]):
-            # 'always' is default if -color is set without any value
-            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
-            if color_mode not in ["never", "always", "auto"]:
-                perror(
-                    'Option "{}" is unknown, try "ss -help".'.format(argv[0])
-                )
-                exit(255)
-            argv.pop(0)
-        elif strict_startswith("-json", argv[0]):
-            json_print = True
-            argv.pop(0)
-        elif strict_startswith("-pretty", argv[0]):
-            pretty_json = True
-            argv.pop(0)
-        elif strict_startswith("-help", argv[0]):
-            return do_help(None, json_print, pretty_json, None)
-        elif strict_startswith("-Version", argv[0]):
-            print("iproute2mac, v" + VERSION)
-            exit(0)
-        elif strict_startswith("-all", argv[0]):
-            all_sockets = True
-            argv.pop(0)
-        elif strict_startswith("-listening", argv[0]):
-            listening = True
-            argv.pop(0)
-        elif strict_startswith("-numeric", argv[0]):
-            numeric = True
-            argv.pop(0)
-        elif strict_startswith("-resolve", argv[0]):
-            resolve = True
-            argv.pop(0)
-        elif strict_startswith("-processes", argv[0]):
-            processes = True
-            argv.pop(0)
-        elif strict_startswith("-summary", argv[0]):
-            summary = True
-            argv.pop(0)
-        elif argv[0] == "-4":
-            ipv4_only = True
-            argv.pop(0)
-        elif argv[0] == "-6":
-            ipv6_only = True
-            argv.pop(0)
-        elif strict_startswith("-tcp", argv[0]):
-            only_tcp = True
-            argv.pop(0)
-        elif strict_startswith("-udp", argv[0]):
-            only_udp = True
-            argv.pop(0)
-        elif strict_startswith("-unix", argv[0]):
-            only_unix = True
-            argv.pop(0)
-        elif strict_startswith("-raw", argv[0]):
-            only_raw = True
-            argv.pop(0)
-        else:
-            perror(f'Option "{argv[0]}" is unknown, try "ss -help".')
-            exit(255)
+    # filter positional arguments if any
+    parser.add_argument(
+        "filter",
+        nargs=argparse.REMAINDER,
+        help="FILTER := [ state STATE-FILTER ] [ EXPRESSION ]",
+    )
+
+    args = parser.parse_args(argv)
+
+    if args.filter:
+        perror(
+            "iproute2mac: FILTER for ss command is not yet implemented. Use available flags or netstat directly."
+        )
+        exit(1)
 
     # Get color scheme
-    color_scheme = get_color_scheme(color_mode, json_print)
+    color_scheme = get_color_scheme(args.color, args.json)
 
     # Summary mode - show socket statistics
-    if summary:
+    if args.summary:
         return do_summary()
 
     # Run netstat with appropriate options
@@ -315,24 +327,24 @@ def main(argv):
     # Parse socket info
     sockets = parse_netstat(
         res,
-        include_listening=all_sockets or listening,
-        resolve=resolve,
-        only_tcp=only_tcp,
-        only_udp=only_udp,
-        only_unix=only_unix,
-        only_raw=only_raw,
-        ipv4_only=ipv4_only,
-        ipv6_only=ipv6_only,
+        include_listening=args.all or args.listening,
+        resolve=args.resolve,
+        only_tcp=args.tcp,
+        only_udp=args.udp,
+        only_unix=args.unix,
+        only_raw=args.raw,
+        ipv4_only=args.ipv4,
+        ipv6_only=args.ipv6,
     )
 
     # JSON output
-    if json_print:
-        return json_dump(sockets, pretty_json)
+    if args.json:
+        return json_dump(sockets, args.pretty_json)
 
     # Display results as table
     print_header()
     for socket in sockets:
-        print(format_socket_line(socket, color_scheme, numeric=numeric))
+        print(format_socket_line(socket, color_scheme, numeric=args.numeric))
 
     return True
 

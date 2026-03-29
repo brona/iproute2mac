@@ -18,7 +18,6 @@ $ss_cmd -V
 
 $ip_cmd --V
 $bridge_cmd --V
-$ss_cmd --V
 
 $ip_cmd -color -V
 $ip_cmd -color=always -V
@@ -30,18 +29,18 @@ $bridge_cmd -color=always -V
 $bridge_cmd -color=auto -V
 $bridge_cmd -color=never -V
 
-$ss_cmd -color -V
-$ss_cmd -color=always -V
-$ss_cmd -color=auto -V
-$ss_cmd -color=never -V
+$ss_cmd -c -V
+$ss_cmd --color=always -V
+$ss_cmd --color=auto -V
+$ss_cmd --color=never -V
 
 ! $ip_cmd help
 ! $bridge_cmd help
 ! $ss_cmd help
 
-$ip_cmd help 2>&1 >/dev/null | grep "Usage: ip "
-$bridge_cmd help 2>&1 >/dev/null | grep "Usage: bridge "
-$ss_cmd -h 2>&1 >/dev/null | grep "Usage: ss "
+$ip_cmd help 2>&1 >/dev/null | grep -i "Usage: ip "
+$bridge_cmd help 2>&1 >/dev/null | grep -i "Usage: bridge "
+$ss_cmd -h | grep -i "Usage: ss "
 
 ! $ip_cmd asdf sh
 ! $bridge_cmd asdf sh
@@ -55,7 +54,7 @@ $ss_cmd -h 2>&1 >/dev/null | grep "Usage: ss "
 
 ! $ip_cmd route help
 
-$ip_cmd route help 2>&1 >/dev/null | grep "Usage: ip route"
+$ip_cmd route help 2>&1 >/dev/null | grep -i "Usage: ip route"
 
 $ip_cmd route
 
@@ -282,7 +281,13 @@ $ss_cmd -a
 
 $ss_cmd -s
 
+$ss_cmd -x
+
 $ss_cmd -j -p | grep '"netid"'
+
+$ss_cmd -nat
+
+$ss_cmd --unix
 
 ! $ss_cmd asdf
 
