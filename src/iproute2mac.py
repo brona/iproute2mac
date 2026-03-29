@@ -19,7 +19,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.7.2"
+VERSION = "1.7.3"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
