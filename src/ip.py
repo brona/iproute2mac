@@ -125,6 +125,16 @@ def link_addr_show(
 
     links = parse_ifconfig(res, af, address)
 
+    if address and af in [4, 6]:
+        links = [
+            l
+            for l in links
+            if any(
+                a["family"] == ("inet" if af == 4 else "inet6")
+                for a in l.get("addr_info", [])
+            )
+        ]
+
     if json_print:
         return json_dump(links, pretty_json)
 
