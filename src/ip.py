@@ -125,6 +125,10 @@ def link_addr_show(
 
     links = parse_ifconfig(res, af, address)
 
+    # Filter out interfaces with no addresses of the requested family
+    if address and af in (4, 6):
+        links = [l for l in links if l.get("addr_info")]
+
     if json_print:
         return json_dump(links, pretty_json)
 
