@@ -125,6 +125,10 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
+  - Fixed (https://github.com/brona/iproute2mac/issues/77), improved `ip` command parsing for degenerate cases.
+  - Fixed (https://github.com/brona/iproute2mac/issues/76), `ss` now correctly parses getopt style arguments (e.g. `ss -nat`).
+  - Fixed (https://github.com/brona/iproute2mac/issues/73), `ip -4 addr` shows only interfaces that have ipv4 address assigned, thanks [@pluharok](https://github.com/pluharok)
+
 </details>
 
 <details open>
