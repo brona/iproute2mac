@@ -262,6 +262,12 @@ def main(argv):
         action="store_true",
         help="Display Unix domain sockets.",
     )
+    parser.add_argument(
+        "-H",
+        "--no-header",
+        action="store_true",
+        help="Suppress header line.",
+    )
 
     # iproute2mac specific options
     parser.add_argument(
@@ -342,7 +348,9 @@ def main(argv):
         return json_dump(sockets, args.pretty_json)
 
     # Display results as table
-    print_header()
+    if not args.no_header:
+        print_header()
+
     for socket in sockets:
         print(format_socket_line(socket, color_scheme, numeric=args.numeric))
 

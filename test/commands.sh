@@ -263,6 +263,8 @@ $bridge_cmd -o link show
 
 $ss_cmd
 
+$ss_cmd -H
+
 $ss_cmd -c
 
 $ss_cmd -j | tee | perl -MJSON -e 'decode_json(<STDIN>)'
