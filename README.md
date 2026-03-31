@@ -125,6 +125,13 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
+  - No changes yet
+
+</details>
+
+<details open>
+  <summary><b>v1.7.4</b></summary>
+
   - `ss -H` is now supported (`--no-header`)
 
 </details>

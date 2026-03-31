@@ -4,5 +4,5 @@ requires-python = ">=3.10"
 
 [[package]]
 name = "iproute2mac"
-version = "1.7.3"
+version = "1.7.4"
 source = { virtual = "." }
