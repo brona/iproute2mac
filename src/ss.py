@@ -161,15 +161,14 @@ def do_summary():
     Returns:
         bool: Success or failure
     """
-    # Run netstat to get socket info
     try:
-        status, res = subprocess.getstatusoutput(f"{NETSTAT} -s")
-        if status:
+        res = subprocess.run([NETSTAT, "-s"], capture_output=True, text=True)
+        if res.returncode != 0:
             perror("Cannot get socket statistics")
             return False
 
         # Just print netstat output for now
-        print(res)
+        print(res.stdout, end="")
         return True
     except Exception as e:
         perror(str(e))
@@ -319,20 +318,22 @@ def main(argv):
 
     # Execute command
     try:
-        status, res = subprocess.getstatusoutput(" ".join(cmd))
-        if status:
-            if res == "":
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            out = (res.stderr + res.stdout).strip()
+            if out == "":
                 perror("Cannot get socket information")
             else:
-                perror(res)
+                perror(out)
             return False
+        netstat_out = res.stdout
     except Exception as e:
         perror(str(e))
         return False
 
     # Parse socket info
     sockets = parse_netstat(
-        res,
+        netstat_out,
         include_listening=args.all or args.listening,
         resolve=args.resolve,
         only_tcp=args.tcp,

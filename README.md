@@ -125,7 +125,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
-  - No changes yet
+  - Address https://github.com/brona/iproute2mac/issues/80, migrate to `subprocess.run()`
 
 </details>
 

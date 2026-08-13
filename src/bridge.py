@@ -146,16 +146,17 @@ def do_link_show(argv, json_print, pretty_json, color, oneline):
     else:
         dev = None
 
-    status, res = subprocess.getstatusoutput(IFCONFIG + " -v -a 2>/dev/null")
-    if status:  # unix status
-        if res == "":
-            perror(param + " not found")
-        else:
-            perror(res)
+    res = subprocess.run(
+        [IFCONFIG, "-v", "-a"], capture_output=True, text=True
+    )
+    if res.returncode != 0:
+        out = (res.stderr + res.stdout).strip()
+        if out:
+            perror(out)
         return False
 
     bridges = []
-    links = parse_ifconfig(res)
+    links = parse_ifconfig(res.stdout)
 
     for master in [l for l in links if "bridge" in l]:
         for slave in master["bridge"].get("members", []):

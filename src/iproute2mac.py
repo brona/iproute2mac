@@ -44,13 +44,22 @@ def perror(*args):
 
 
 def execute_cmd(cmd):
-    print("Executing: %s" % cmd)
-    status, output = subprocess.getstatusoutput(cmd)
-    if status == 0:  # unix/linux commands 0 true, 1 false
-        print(output)
+    if not isinstance(cmd, list):
+        raise TypeError(
+            "execute_cmd requires a list of argument strings, got %s"
+            % type(cmd).__name__
+        )
+    print("Executing: %s" % " ".join(cmd))
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0:
+        if res.stdout:
+            print(res.stdout, end="")
         return True
     else:
-        perror(output)
+        if res.stderr:
+            perror(res.stderr).strip()
+        if res.stdout:
+            perror(res.stdout).strip()
         return False
 
 

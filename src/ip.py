@@ -99,31 +99,30 @@ def parse_ifconfig(res, af, address):
 def link_addr_show(
     argv, af, json_print, pretty_json, color, address, brief, oneline
 ):
-    param = ""
+    cmd = [IFCONFIG, "-v"]
     if "up" in argv:
         argv.remove("up")
-        param = "-u "
+        cmd.append("-u")
 
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
-        param += argv[0]
+        cmd.append(argv[0])
     else:
-        param += "-a"
+        cmd.append("-a")
 
     output_separator = "\\" if oneline else "\n"
 
-    status, res = subprocess.getstatusoutput(
-        IFCONFIG + " -v " + param + " 2>/dev/null"
-    )
-    if status:  # unix status
-        if res == "":
-            perror(param + " not found")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        out = (res.stderr + res.stdout).strip()
+        if out == "":
+            perror(" ".join(cmd[2:]) + " not found")
         else:
-            perror(res)
+            perror(out)
         return False
 
-    links = parse_ifconfig(res, af, address)
+    links = parse_ifconfig(res.stdout, af, address)
 
     # Filter out interfaces with no addresses of the requested family
     if address and af in (4, 6):
@@ -331,18 +330,20 @@ def do_route_list(argv, af, json_print, pretty_json, color):
 
     # ip route prints IPv6 or IPv4, never both
     inet = "inet6" if af == 6 else "inet"
-    status, res = subprocess.getstatusoutput(
-        NETSTAT + " -nr -f " + inet + " 2>/dev/null"
+    res = subprocess.run(
+        [NETSTAT, "-nr", "-f", inet], capture_output=True, text=True
     )
-    if status:
-        perror(res)
+    if res.returncode != 0:
+        perror((res.stderr + res.stdout).strip())
         return False
-    res = res.split("\n")
-    res = res[4:]  # Removes first 4 lines
+    lines = res.stdout.split("\n")
+    lines = lines[4:]  # Removes first 4 lines
 
     routes = []
 
-    for r in res:
+    for r in lines:
+        if not r.strip():
+            continue
         ra = r.split()
         target = ra[0]
         gw = ra[1]
@@ -402,14 +403,14 @@ def do_route_list(argv, af, json_print, pretty_json, color):
 
 
 def do_route_add(argv, af):
-    options = ""
+    is_blackhole = False
     if argv[0] == "blackhole":
         argv.pop(0)
         if len(argv) != 1:
             return False
         argv.append("via")
         argv.append("::1" if ":" in argv[0] or af == 6 else "127.0.0.1")
-        options = "-blackhole"
+        is_blackhole = True
 
     if len(argv) not in (3, 5):
         return False
@@ -421,37 +422,45 @@ def do_route_add(argv, af):
             )
         )
 
+    prefix = argv[0]
+    cmd = [SUDO, ROUTE, "add"]
+    if ":" in prefix or af == 6:
+        cmd.append("-inet6")
+
+    cmd.append(prefix)
+
     if argv[1] in ["via", "nexthop", "gw"]:
-        gw = argv[2]
+        cmd.append(argv[2])
     elif argv[1] in ["dev"]:
-        gw = "-interface " + argv[2]
+        cmd.extend(["-interface", argv[2]])
     else:
         do_help_route()
 
-    prefix = argv[0]
-    inet = "-inet6 " if ":" in prefix or af == 6 else ""
+    if is_blackhole:
+        cmd.append("-blackhole")
 
-    return execute_cmd(
-        SUDO + " " + ROUTE + " add " + inet + prefix + " " + gw + " " + options
-    )
+    return execute_cmd(cmd)
 
 
 def do_route_del(argv, af):
-    options = ""
+    blackhole_args = []
     if argv[0] == "blackhole":
         argv.pop(0)
         if len(argv) != 1:
             return False
         if ":" in argv[0] or af == 6:
-            options = " ::1 -blackhole"
+            blackhole_args = ["::1", "-blackhole"]
         else:
-            options = " 127.0.0.1 -blackhole"
+            blackhole_args = ["127.0.0.1", "-blackhole"]
 
     prefix = argv[0]
-    inet = "-inet6 " if ":" in prefix or af == 6 else ""
-    return execute_cmd(
-        SUDO + " " + ROUTE + " delete " + inet + prefix + options
-    )
+    cmd = [SUDO, ROUTE, "delete"]
+    if ":" in prefix or af == 6:
+        cmd.append("-inet6")
+
+    cmd.append(prefix)
+    cmd.extend(blackhole_args)
+    return execute_cmd(cmd)
 
 
 def do_route_flush(argv, af):
@@ -469,7 +478,7 @@ def do_route_flush(argv, af):
     elif len(argv) == 2 and argv[0] == "table" and argv[1] == "main":
         family = "-inet6" if af == 6 else "-inet"
         print("iproute2mac: Flushing all routes")
-        return execute_cmd(SUDO + " " + ROUTE + " -n flush " + family)
+        return execute_cmd([SUDO, ROUTE, "-n", "flush", family])
     else:
         return False
 
@@ -477,29 +486,34 @@ def do_route_flush(argv, af):
 def do_route_get(argv, af, json_print, pretty_json, color):
     target = argv[0]
 
-    inet = ""
+    cmd = [ROUTE, "-n", "get"]
     if ":" in target or af == 6:
-        inet = "-inet6 "
+        cmd.append("-inet6")
         family = socket.AF_INET6
         color_af = "inet6"
     else:
         family = socket.AF_INET
         color_af = "inet"
 
-    status, res = subprocess.getstatusoutput(
-        ROUTE + " -n get " + inet + target
+    cmd.append(target)
+
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    res_text = (
+        (res.stderr + res.stdout).strip()
+        if res.returncode != 0
+        else res.stdout
     )
-    if status:  # unix status or not in table
-        perror(res)
+    if res.returncode != 0:
+        perror(res_text)
         return False
-    if res.find("not in table") >= 0:
-        perror(res)
+    if res_text.find("not in table") >= 0:
+        perror(res_text)
         exit(1)
 
     res = dict(
         re.findall(
             r"^\W*((?:route to|destination|gateway|interface)): (.+)$",
-            res,
+            res_text,
             re.MULTILINE,
         )
     )
@@ -592,13 +606,14 @@ def do_addr_add(argv, af):
     except IndexError:
         perror("dev not found")
         exit(1)
-    inet = ""
+    cmd = [SUDO, IFCONFIG, dev]
     if ":" in addr or af == 6:
         af = 6
-        inet = " inet6"
-    return execute_cmd(
-        SUDO + " " + IFCONFIG + " " + dev + inet + " add " + addr + " " + dst
-    )
+        cmd.append("inet6")
+    cmd.extend(["add", addr])
+    if dst:
+        cmd.append(dst)
+    return execute_cmd(cmd)
 
 
 def do_addr_del(argv, af):
@@ -616,9 +631,7 @@ def do_addr_del(argv, af):
     if ":" in addr or af == 6:
         af = 6
         inet = "inet6"
-    return execute_cmd(
-        SUDO + " " + IFCONFIG + " " + dev + " " + inet + " " + addr + " remove"
-    )
+    return execute_cmd([SUDO, IFCONFIG, dev, inet, addr, "remove"])
 
 
 # Link module
@@ -660,37 +673,39 @@ def do_link_set(argv, af):
 
     dev = argv[0]
 
-    IFCONFIG_DEV_CMD = SUDO + " " + IFCONFIG + " " + dev
+    ifconfig_dev_cmd = [SUDO, IFCONFIG, dev]
     try:
         args = iter(argv)
         for arg in args:
             if arg == "up":
-                if not execute_cmd(IFCONFIG_DEV_CMD + " up"):
+                if not execute_cmd(ifconfig_dev_cmd + ["up"]):
                     return False
             elif arg == "down":
-                if not execute_cmd(IFCONFIG_DEV_CMD + " down"):
+                if not execute_cmd(ifconfig_dev_cmd + ["down"]):
                     return False
             elif arg in ["address", "addr", "lladdr"]:
                 addr = next(args)
                 if addr in ["random", "rand"]:
                     addr = randomMAC()
                 elif addr == "factory":
-                    (status, res) = subprocess.getstatusoutput(
-                        NETWORKSETUP + " -listallhardwareports"
+                    res = subprocess.run(
+                        [NETWORKSETUP, "-listallhardwareports"],
+                        capture_output=True,
+                        text=True,
                     )
-                    if status != 0:
+                    if res.returncode != 0:
                         return False
                     details = re.findall(
                         r"^(?:Device|Ethernet Address): (.+)$",
-                        res,
+                        res.stdout,
                         re.MULTILINE,
                     )
                     addr = details[details.index(dev) + 1]
-                if not execute_cmd(IFCONFIG_DEV_CMD + " lladdr " + addr):
+                if not execute_cmd(ifconfig_dev_cmd + ["lladdr", addr]):
                     return False
             elif arg == "mtu":
                 mtu = int(next(args))
-                if not execute_cmd(IFCONFIG_DEV_CMD + " mtu " + str(mtu)):
+                if not execute_cmd(ifconfig_dev_cmd + ["mtu", str(mtu)]):
                     return False
     except Exception:
         return False
@@ -830,9 +845,9 @@ def do_neigh_flush(argv, af):
             "iproute2mac: NDP doesn't support filtering by interface,"
             "flushing all IPv6 entries."
         )
-        execute_cmd(SUDO + " " + NDP + " -cn")
+        execute_cmd([SUDO, NDP, "-cn"])
     if af != 6:
-        execute_cmd(SUDO + " " + ARP + " -a -d -i " + dev)
+        execute_cmd([SUDO, ARP, "-a", "-d", "-i", dev])
     return True
 
 
