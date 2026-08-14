@@ -19,7 +19,7 @@ import sys
 import types
 
 # Version
-VERSION = "1.7.4"
+VERSION = "1.7.5"
 
 # Utilities
 SUDO = "/usr/bin/sudo"
@@ -52,14 +52,16 @@ def execute_cmd(cmd):
     print("Executing: %s" % " ".join(cmd))
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode == 0:
+        if res.stderr:
+            perror(res.stderr.strip())
         if res.stdout:
             print(res.stdout, end="")
         return True
     else:
         if res.stderr:
-            perror(res.stderr).strip()
+            perror(res.stderr.strip())
         if res.stdout:
-            perror(res.stdout).strip()
+            perror(res.stdout.strip())
         return False
 
 
