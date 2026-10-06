@@ -132,7 +132,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>v1.7.6</b></summary>
 
-  - Address https://github.com/brona/iproute2mac/issues/81, fix `ss -l` filtering
+  - Fix https://github.com/brona/iproute2mac/issues/81, `ss -l` now shows only LISTENING sockets.
 
 </details>
 
