@@ -19,7 +19,8 @@ from iproute2mac import *
 
 def parse_netstat(
     res,
-    include_listening=False,
+    listening_only=False,
+    show_all=False,
     resolve=False,
     only_tcp=False,
     only_udp=False,
@@ -33,7 +34,8 @@ def parse_netstat(
 
     Args:
         res (str): Output from netstat command
-        include_listening (bool): Include listening sockets
+        listening_only (bool): Show only listening sockets (ss -l)
+        show_all (bool): Show both listening and non-listening sockets (ss -a)
         resolve (bool): Resolve hostnames
         only_tcp (bool): Show only TCP sockets
         only_udp (bool): Show only UDP sockets
@@ -76,10 +78,18 @@ def parse_netstat(
         if ipv6_only and not "6" in proto:
             continue
 
-        # Filter by state (listening or established)
+        # Filter by state:
         state = parts[-1] if len(parts) >= 6 else "UNKNOWN"
-        if not include_listening and state == "LISTEN":
-            continue
+        if show_all:
+            pass  # show everything for -a
+        elif listening_only:
+            # show only LISTEN sockets for -l
+            if state != "LISTEN":
+                continue
+        else:
+            # show non-listening sockets only by default (no flags)
+            if state == "LISTEN":
+                continue
 
         local = parts[3]
         peer = parts[4]
@@ -334,7 +344,8 @@ def main(argv):
     # Parse socket info
     sockets = parse_netstat(
         netstat_out,
-        include_listening=args.all or args.listening,
+        listening_only=args.listening,
+        show_all=args.all,
         resolve=args.resolve,
         only_tcp=args.tcp,
         only_udp=args.udp,
