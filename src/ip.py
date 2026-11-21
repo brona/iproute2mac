@@ -31,15 +31,32 @@ def addr_scope(local):
     return "global"
 
 
+# Operational state and carrier flags, as iproute2 shows them
+def set_operstate(link, status):
+    up = "UP" in link["flags"]
+    if status is None:
+        # no media status (lo0, gif, stf, utun, ...)
+        carrier = "RUNNING" in link["flags"]
+        link["operstate"] = "UNKNOWN" if up else "DOWN"
+    else:
+        carrier = status == "active"
+        link["operstate"] = "UP" if up and carrier else "DOWN"
+    if up:
+        link["flags"].append("LOWER_UP" if carrier else "NO-CARRIER")
+
+
 # Decode ifconfig output
 def parse_ifconfig(res, af, address):
     links = []
     count = 1
 
+    status = None
     for r in res.split("\n"):
         if re.match(r"^\w+:", r):
             if count > 1:
+                set_operstate(link, status)
                 links.append(link)
+            status = None
             (ifname, flags, mtu, ifindex) = re.findall(
                 r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r
             )[0]
@@ -100,9 +117,9 @@ def parse_ifconfig(res, af, address):
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif match := re.search(r"^\s+status: (\w+)", r):
                 status = match.group(1)
-                link["operstate"] = "UP" if status == "active" else "DOWN"
 
     if count > 1:
+        set_operstate(link, status)
         links.append(link)
 
     return sorted(links, key=itemgetter("ifindex"))
@@ -207,7 +224,7 @@ def link_addr_show(
             # Interface header printed only for `ip link` or `ip address` without -oneline
             if not address or (address and not oneline):
                 lines.append(
-                    "%d: %s: %smtu %d status %s"
+                    "%d: %s: %smtu %d state %s"
                     % (
                         l["ifindex"],
                         colorize_ifname(color, l["ifname"]),

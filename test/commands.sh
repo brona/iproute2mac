@@ -245,6 +245,12 @@ $ip_cmd -j link show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -j -p link show dev lo0 | grep '"link_type": "loopback"'
 
+$ip_cmd link show dev lo0 | grep -E '^1: lo0: <.*LOWER_UP.*> mtu [0-9]+ state UNKNOWN$'
+
+$ip_cmd -j link show dev lo0 | grep '"LOWER_UP"'
+
+! $ip_cmd link show | grep ' status '
+
 $ip_cmd li sho | grep mtu
 
 $ip_cmd li ls | grep mtu

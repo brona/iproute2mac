@@ -51,6 +51,7 @@ When its output is not a terminal, `ip` behaves like iproute2 for scripts:
 * It prints nothing when a change succeeds, set `IPROUTE2MAC_VERBOSE=1` to see the macOS commands it runs.
 * It exits with status 2 when macOS refuses a change, 1 when a device does not exist and 255 on a usage error.
 * It runs the macOS commands without `sudo` when it is run as root.
+* `ip link` shows the `state` of an interface and the `LOWER_UP` or `NO-CARRIER` flag like iproute2.
 
 ## Supported commands / Example usage
 
