@@ -358,8 +358,11 @@ def do_help_link():
 
 
 def do_help_neigh():
-    perror("Usage: ip neighbour show [ [ to ] PREFIX ] [ dev DEV ]")
-    perror("       ip neighbour flush [ dev DEV ]")
+    perror("Usage: ip neighbour { add | del | change | replace }")
+    perror("                    ADDR [ lladdr LLADDR ] [ nud STATE ] dev DEV")
+    perror("       ip neighbour show [ [ to ] PREFIX ] [ dev DEV ]")
+    perror("       ip neighbour flush [ [ to ] PREFIX ] [ dev DEV ]")
+    perror("STATE := { permanent | reachable | stale | delay | probe }")
     exit(255)
 
 
@@ -1207,32 +1210,35 @@ def do_neigh(argv, af, json_print, pretty_json, color, brief, oneline):
     elif strict_startswith("flush", argv[0]):
         argv.pop(0)
         return do_neigh_flush(argv, af)
+    elif strict_startswith("add", argv[0]):
+        argv.pop(0)
+        return do_neigh_modify("add", argv, af)
+    elif strict_startswith("delete", argv[0]):
+        argv.pop(0)
+        return do_neigh_modify("del", argv, af)
+    elif strict_startswith("change", argv[0]) or argv[0] == "chg":
+        argv.pop(0)
+        return do_neigh_modify("change", argv, af)
+    elif strict_startswith("replace", argv[0]):
+        argv.pop(0)
+        return do_neigh_modify("replace", argv, af)
     else:
         return False
 
 
-def do_neigh_show(argv, af, json_print, pretty_json, color):
-    prefix = None
-    dev = None
+def mac_linux(mac):
+    """A MAC address as iproute2 prints it: 2:0:0:0:2:a -> 02:00:00:00:02:0a"""
     try:
-        while argv:
-            arg = argv.pop(0)
-            if arg == "to":
-                prefix = argv.pop(0)
-            elif arg == "dev":
-                dev = argv.pop(0)
-            elif prefix is None:
-                prefix = arg
-            else:
-                return False
-        if prefix:
-            prefix = ipaddress.ip_network(prefix, strict=False)
-    except Exception:
-        return False
-    aliases = ifname_aliases()
-    if dev:
-        dev = kernel_ifname(dev)
+        return ":".join("%02x" % int(x, 16) for x in mac.split(":"))
+    except ValueError:
+        return mac
 
+
+def neigh_list(af, dev=None, prefix=None):
+    """
+    Neighbours on dev (a macOS name) with their address in prefix. "_name" is
+    the address that arp(8) or ndp(8) takes.
+    """
     nd_ll_states = {
         "R": "REACHABLE",
         "S": "STALE",
@@ -1253,46 +1259,108 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
             cols = row.split()
             entry = {"dst": re.sub(r"%.+$", "", cols[0])}
             if cols[1] != "(incomplete)":
-                entry["lladdr"] = cols[1]
+                entry["lladdr"] = mac_linux(cols[1])
             entry["dev"] = cols[2]
             if dev and entry["dev"] != dev:
                 continue
-            entry["dev"] = aliases.get(entry["dev"], entry["dev"])
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
             if cols[1] == "(incomplete)" and cols[4] != "R":
                 entry["state"] = ["INCOMPLETE"]
+            elif cols[3] == "permanent":
+                entry["state"] = ["PERMANENT"]
             else:
                 entry["state"] = [nd_ll_states[cols[4]]]
             if len(cols) >= 6 and cols[5] == "R":
                 # iproute2 outputs null in its json
                 entry["router"] = None
+            entry["_name"] = cols[0]
             neighs.append(entry)
 
     if af != 6:
-        args = [ARP, "-anl"]
+        args = [ARP, "-an"]
         if dev:
             args += ["-i", dev]
 
         res = subprocess.run(args, capture_output=True, text=True, check=True)
-        for row in res.stdout.splitlines()[1:]:
-            cols = row.split()
-            entry = {"dst": cols[0]}
-            if cols[1] != "(incomplete)":
-                entry["lladdr"] = cols[1]
-            entry["dev"] = cols[4]
+        for row in res.stdout.splitlines():
+            # ? (192.0.2.2) at 2:0:0:0:2:2 on en0 ifscope permanent [ethernet]
+            m = re.match(r"^\S+ \(([\d.]+)\) at (\S+) on (\S+)(.*)$", row)
+            if not m:
+                continue
+            entry = {"dst": m.group(1)}
+            if m.group(2) != "(incomplete)":
+                entry["lladdr"] = mac_linux(m.group(2))
+            entry["dev"] = m.group(3)
             if dev and entry["dev"] != dev:
                 continue
-            entry["dev"] = aliases.get(entry["dev"], entry["dev"])
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
-            if cols[1] == "(incomplete)":
+            if m.group(2) == "(incomplete)":
                 entry["state"] = ["INCOMPLETE"]
+            elif "permanent" in m.group(4).split():
+                entry["state"] = ["PERMANENT"]
             else:
                 entry["state"] = ["REACHABLE"]
             # router field is ipv6 feature, iproute2 doesn't include router element if not set
             # entry["router"] = False
+            entry["_name"] = entry["dst"]
             neighs.append(entry)
+
+    return neighs
+
+
+def neigh_dev(name):
+    """macOS name of the device of a neighbour, which must exist."""
+    dev = kernel_ifname(name)
+    ifnames = subprocess.run(
+        [IFCONFIG, "-l"], capture_output=True, text=True
+    ).stdout.split()
+    if dev not in ifnames:
+        perror('Cannot find device "%s"' % name)
+        exit(1)
+    return dev
+
+
+def parse_neigh_selector(argv):
+    """[ [ to ] PREFIX ] [ dev DEV ] of "ip neigh show" and "flush"."""
+    prefix = None
+    dev = None
+    try:
+        while argv:
+            arg = argv.pop(0)
+            if arg == "to":
+                prefix = argv.pop(0)
+            elif arg == "dev":
+                dev = argv.pop(0)
+            elif arg == "nud":
+                not_implemented(
+                    arg, "neighbours are selected by address and dev"
+                )
+            elif prefix is None:
+                prefix = arg
+            else:
+                return None
+        if prefix:
+            prefix = ipaddress.ip_network(prefix, strict=False)
+    except (IndexError, ValueError):
+        return None
+    if dev:
+        dev = neigh_dev(dev)
+    return (prefix, dev)
+
+
+def do_neigh_show(argv, af, json_print, pretty_json, color):
+    selector = parse_neigh_selector(argv)
+    if selector is None:
+        return False
+    prefix, dev = selector
+
+    neighs = neigh_list(af, dev, prefix)
+    aliases = ifname_aliases()
+    for nb in neighs:
+        nb.pop("_name")
+        nb["dev"] = aliases.get(nb["dev"], nb["dev"])
 
     if json_print:
         return json_dump(neighs, pretty_json)
@@ -1319,23 +1387,124 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
     return True
 
 
+def neigh_delete(nb):
+    if ":" in nb["dst"]:
+        # ndp(8) deletes the first of the entries of the address
+        return execute_cmd([SUDO, NDP, "-d", nb["_name"]])
+    return execute_cmd([SUDO, ARP, "-d", nb["_name"], "ifscope", nb["dev"]])
+
+
 def do_neigh_flush(argv, af):
-    if len(argv) != 2:
+    if not argv:
         perror("Flush requires arguments.")
         exit(1)
-
-    if argv[0] != "dev":
+    selector = parse_neigh_selector(argv)
+    if selector is None:
         return False
-    dev = kernel_ifname(argv[1])
+    prefix, dev = selector
 
-    if af != 4:
-        print(
-            "iproute2mac: NDP doesn't support filtering by interface,"
-            "flushing all IPv6 entries."
+    # like iproute2, keep the permanent entries, the addresses of macOS too
+    for nb in neigh_list(af, dev, prefix):
+        if nb["state"] != ["PERMANENT"]:
+            neigh_delete(nb)
+    return True
+
+
+NUD_STATES = {
+    "permanent": [],
+    "reachable": ["temp"],
+    "stale": ["temp"],
+    "delay": ["temp"],
+    "probe": ["temp"],
+}
+
+
+def do_neigh_modify(cmd, argv, af):
+    # ip neigh { add | del | change | replace } [ to ] ADDR
+    #          [ lladdr LLADDR ] [ nud STATE ] dev DEV
+    dst = lladdr = dev = None
+    nud = "permanent"
+    while argv:
+        arg = argv.pop(0)
+        if arg == "lladdr" and argv:
+            lladdr = argv.pop(0)
+        elif arg == "nud" and argv:
+            nud = argv.pop(0)
+        elif arg == "dev" and argv:
+            dev = argv.pop(0)
+        elif arg in ["proxy", "router", "extern_learn", "managed", "use"]:
+            not_implemented(arg, "macOS neighbours have no such flag")
+        elif arg in ["protocol", "proto"]:
+            not_implemented(arg, "macOS neighbours have no protocol")
+        elif dst is None:
+            if arg == "to" and argv:
+                arg = argv.pop(0)
+            dst = arg
+        else:
+            return False
+    if dst is None or dev is None:
+        perror("Device and destination are required arguments.")
+        exit(255)
+    try:
+        addr = ipaddress.ip_address(dst)
+    except ValueError:
+        perror('Error: any valid address is expected rather than "%s".' % dst)
+        exit(1)
+    if af in (4, 6) and af != addr.version:
+        return False
+    if nud not in NUD_STATES:
+        not_implemented("nud " + nud, "macOS has static and expiring entries")
+    if cmd != "del" and lladdr is None:
+        not_implemented(
+            "ip neigh %s without lladdr" % cmd,
+            "a neighbour of macOS needs its link layer address",
         )
-        execute_cmd([SUDO, NDP, "-cn"])
-    if af != 6:
-        execute_cmd([SUDO, ARP, "-a", "-d", "-i", dev])
+    dev = neigh_dev(dev)
+    prefix = ipaddress.ip_network(addr)
+
+    existing = neigh_list(addr.version, dev, prefix)
+    if cmd == "add" and existing:
+        perror("RTNETLINK answers: File exists")
+        exit(2)
+    if cmd in ["del", "change"] and not existing:
+        perror("RTNETLINK answers: No such file or directory")
+        exit(2)
+
+    if addr.version == 4:
+        if cmd == "del":
+            return execute_cmd([SUDO, ARP, "-d", dst, "ifscope", dev])
+        # arp(8) replaces an existing entry
+        return execute_cmd(
+            [SUDO, ARP, "-s", dst, lladdr] + NUD_STATES[nud] + ["ifscope", dev]
+        )
+
+    for nb in existing:
+        neigh_delete(nb)
+    if cmd == "del":
+        return True
+    name = dst
+    if addr.is_link_local:
+        name += "%" + dev
+    else:
+        # ndp(8) adds the entry to the interface of the route to dst
+        res = subprocess.run(
+            [ROUTE, "-n", "get", "-inet6", dst], capture_output=True, text=True
+        )
+        m = re.search(r"interface: (\S+)", res.stdout)
+        if not m or m.group(1) != dev:
+            not_implemented(
+                "dev", "macOS puts a neighbour on the interface of its route"
+            )
+    execute_cmd([SUDO, NDP, "-s", name, lladdr] + NUD_STATES[nud])
+    # the lookup of ndp(8) leaves an empty entry of dst, which comes first
+    # and hides the new one: delete it
+    added = neigh_list(6, dev, prefix)
+    if [nb for nb in added if "lladdr" not in nb]:
+        execute_cmd([SUDO, NDP, "-d", name])
+        added = neigh_list(6, dev, prefix)
+    if not [nb for nb in added if nb.get("lladdr") == mac_linux(lladdr)]:
+        perror("iproute2mac: ndp(8) did not add the neighbour.")
+        exit(2)
     return True
 
 

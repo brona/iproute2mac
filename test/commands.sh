@@ -429,6 +429,51 @@ $ip_cmd -j -p neigh show dev lo0 | grep '"dev": "lo0"'
 
 ! $ip_cmd neigh asdf
 
+## add, replace, change, del, flush
+
+$ip_cmd link add ipr2mveth0 type veth peer name ipr2mveth1
+$ip_cmd link set ipr2mveth0 up
+$ip_cmd link set ipr2mveth1 up
+$ip_cmd addr add 192.0.2.231/24 dev ipr2mveth0
+$ip_cmd -6 addr add 2001:db8:231::1/64 dev ipr2mveth0
+
+$ip_cmd neigh add 192.0.2.232 lladdr 02:00:00:00:02:32 dev ipr2mveth0
+$ip_cmd neigh show dev ipr2mveth0 | grep -x '192.0.2.232 dev ipr2mveth0 lladdr 02:00:00:00:02:32 PERMANENT'
+! $ip_cmd neigh add 192.0.2.232 lladdr 02:00:00:00:02:33 dev ipr2mveth0
+$ip_cmd neigh replace 192.0.2.232 lladdr 02:00:00:00:02:33 dev ipr2mveth0
+$ip_cmd neigh show 192.0.2.232 | grep 'lladdr 02:00:00:00:02:33 PERMANENT'
+$ip_cmd neigh change 192.0.2.232 lladdr 02:00:00:00:02:32 dev ipr2mveth0 nud reachable
+$ip_cmd neigh show 192.0.2.232 | grep 'lladdr 02:00:00:00:02:32 REACHABLE'
+$ip_cmd neigh del 192.0.2.232 dev ipr2mveth0
+! $ip_cmd neigh show dev ipr2mveth0 | grep 192.0.2.232
+! $ip_cmd neigh del 192.0.2.232 dev ipr2mveth0
+! $ip_cmd neigh change 192.0.2.232 lladdr 02:00:00:00:02:32 dev ipr2mveth0
+
+$ip_cmd -6 neigh add 2001:db8:231::2 lladdr 02:00:00:00:02:34 dev ipr2mveth0
+$ip_cmd -6 neigh show dev ipr2mveth0 | grep -x '2001:db8:231::2 dev ipr2mveth0 lladdr 02:00:00:00:02:34 PERMANENT'
+test "$($ip_cmd -6 neigh show 2001:db8:231::2)" = "2001:db8:231::2 dev ipr2mveth0 lladdr 02:00:00:00:02:34 PERMANENT"
+$ip_cmd neigh replace 2001:db8:231::2 lladdr 02:00:00:00:02:35 dev ipr2mveth0
+test "$($ip_cmd -6 neigh show 2001:db8:231::2)" = "2001:db8:231::2 dev ipr2mveth0 lladdr 02:00:00:00:02:35 PERMANENT"
+$ip_cmd neigh add fe80::2 lladdr 02:00:00:00:02:36 dev ipr2mveth0
+$ip_cmd -6 neigh show dev ipr2mveth0 | grep -x 'fe80::2 dev ipr2mveth0 lladdr 02:00:00:00:02:36 PERMANENT'
+$ip_cmd neigh del 2001:db8:231::2 dev ipr2mveth0
+$ip_cmd neigh del fe80::2 dev ipr2mveth0
+! $ip_cmd -6 neigh show dev ipr2mveth0 | grep -E '^(2001:db8:231::2|fe80::2) '
+
+# flush keeps the permanent entries
+$ip_cmd neigh add 192.0.2.233 lladdr 02:00:00:00:02:37 dev ipr2mveth0 nud reachable
+$ip_cmd neigh add 192.0.2.234 lladdr 02:00:00:00:02:38 dev ipr2mveth0
+$ip_cmd neigh flush dev ipr2mveth0
+! $ip_cmd neigh show dev ipr2mveth0 | grep 192.0.2.233
+$ip_cmd neigh show dev ipr2mveth0 | grep 192.0.2.234
+$ip_cmd -6 neigh show dev ipr2mveth0 | grep '^2001:db8:231::1 .* PERMANENT'
+
+! $ip_cmd neigh add 192.0.2.235 lladdr 02:00:00:00:02:39 dev ipr2mveth0 extern_learn
+! $ip_cmd neigh add 192.0.2.235 lladdr 02:00:00:00:02:39 dev ipr2mveth0 nud noarp
+! $ip_cmd neigh add 192.0.2.235 lladdr 02:00:00:00:02:39 dev ipr2mnone0
+! $ip_cmd neigh show dev ipr2mveth0 | grep 192.0.2.235
+$ip_cmd link del ipr2mveth0
+
 # bridge
 
 ! $bridge_cmd help

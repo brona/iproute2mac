@@ -86,10 +86,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Show all IPv6 (NDP) neighbours `ip -6 neigh`
   * Show all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh show dev en0`
   * Show neighbours filtered by prefix `ip -4 neigh show 192.0.2.0/24`
-  * IPv6 (NDP) neighbours cannot be currently shown for a specific interface
-  * Flush all neighbours (IPv4 + IPv6) for a specific interface `ip neigh flush dev en0`
-  * Flush all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh flush dev en0`
-  * IPv6 (NDP) neighbours are being flushed for all interfaces
+  * Add a static neighbour `ip neigh add 192.0.2.2 lladdr 02:00:00:00:00:02 dev en0`, or an expiring one `ip neigh add 2001:db8::2 lladdr 02:00:00:00:00:02 dev en0 nud reachable`
+  * Replace or change a neighbour `ip neigh replace 192.0.2.2 lladdr 02:00:00:00:00:03 dev en0`
+  * Delete a neighbour `ip neigh del 192.0.2.2 dev en0`
+  * Flush the neighbours of an interface, except the permanent ones like iproute2 `ip neigh flush dev en0`, or of a prefix `ip -6 neigh flush 2001:db8::/64 dev en0`
+  * macOS puts an IPv6 neighbour on the interface of the route to its address, and has no `proxy`, `router` or `extern_learn` neighbour
 * Address module
   * List all addresses `ip addr`
   * List all addresses in brief format `ip -br addr`
