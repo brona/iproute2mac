@@ -403,7 +403,10 @@ def do_help_route():
 
 def do_help_addr():
     perror("Usage: ip addr show [ dev STRING ] [ to PREFIX ] [up]")
-    perror("       ip addr { add | del } PREFIX dev STRING")
+    perror("       ip addr { add | change | replace } PREFIX dev STRING")
+    perror("               [ peer PREFIX ] [ broadcast ADDR ] [ scope SCOPE ]")
+    perror("               [ valid_lft LFT ] [ preferred_lft LFT ] [ nodad ]")
+    perror("       ip addr del PREFIX dev STRING")
     perror("       ip addr flush [ dev ] STRING [ scope SCOPE ] [ to PREFIX ]")
     exit(255)
 
@@ -804,6 +807,12 @@ def do_addr(argv, af, json_print, pretty_json, color, brief, oneline):
     elif strict_startswith("add", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_add(argv, af)
+    elif strict_startswith("change", argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_addr_add(argv, af, "change")
+    elif strict_startswith("replace", argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_addr_add(argv, af, "replace")
     elif strict_startswith("delete", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_del(argv, af)
@@ -882,32 +891,118 @@ def do_addr_show(argv, af, json_print, pretty_json, color, brief, oneline):
     )
 
 
-def do_addr_add(argv, af):
-    if len(argv) < 2:
-        return False
+# Flags of "ip addr add" that macOS addresses do not have
+ADDR_FLAGS = ["noprefixroute", "home", "mngtmpaddr", "optimistic", "autojoin"]
 
-    dst = ""
-    if argv[1] == "peer":
-        argv.pop(1)
-        dst = argv.pop(1)
 
-    if argv[1] == "dev":
-        argv.pop(1)
-    else:
-        return False
-    try:
-        addr = argv[0]
-        dev = kernel_ifname(argv[1])
-    except IndexError:
-        perror("dev not found")
+def addr_exists(dev, ip):
+    """Whether dev has the address ip, dev must exist."""
+    res = subprocess.run([IFCONFIG, "-v", dev], capture_output=True, text=True)
+    if res.returncode != 0:
+        perror('Cannot find device "%s"' % dev)
         exit(1)
+    for link in parse_ifconfig(res.stdout, -1, True):
+        for a in link.get("addr_info", []):
+            if ipaddress.ip_address(a["local"].split("%")[0]) == ip:
+                return True
+    return False
+
+
+def execute_cmd_nodad(cmd):
+    """Run cmd adding an IPv6 address without duplicate address detection:
+    macOS has no such flag, but a global count of DAD probes."""
+    res = subprocess.run(
+        [SYSCTL, "-n", "net.inet6.ip6.dad_count"],
+        capture_output=True,
+        text=True,
+    )
+    count = res.stdout.strip()
+    if res.returncode != 0 or count == "0":
+        return execute_cmd(cmd)
+    execute_cmd([SUDO, SYSCTL, "-w", "net.inet6.ip6.dad_count=0"])
+    try:
+        return execute_cmd(cmd)
+    finally:
+        execute_cmd([SUDO, SYSCTL, "-w", "net.inet6.ip6.dad_count=" + count])
+
+
+def do_addr_add(argv, af, verb="add"):
+    # ip addr { add | change | replace } IFADDR dev IFNAME [ LIFETIME ]
+    #         [ CONFFLAG-LIST ]
+    local = peer = dev = brd = scope = None
+    nodad = False
+    lifetimes = {}
+    while argv:
+        arg = argv.pop(0)
+        if arg == "dev" and argv:
+            dev = argv.pop(0)
+        elif arg in ["peer", "remote"] and argv:
+            peer = argv.pop(0)
+        elif arg in ["broadcast", "brd"] and argv:
+            brd = argv.pop(0)
+        elif arg == "scope" and argv:
+            scope = argv.pop(0)
+        elif arg in ["valid_lft", "preferred_lft"] and argv:
+            lifetimes[arg] = argv.pop(0)
+        elif arg == "nodad":
+            nodad = True
+        elif arg in ADDR_FLAGS:
+            not_implemented(arg, "macOS addresses have no such flag")
+        elif arg in ["label", "metric", "proto", "protocol", "anycast"]:
+            not_implemented(arg, "macOS addresses have no " + arg)
+        elif local is None:
+            if arg == "local" and argv:
+                arg = argv.pop(0)
+            local = arg
+        else:
+            return False
+    if local is None:
+        return False
+    if dev is None:
+        perror('Not enough information: "dev" argument is required.')
+        exit(1)
+    try:
+        # like iproute2, an address without a prefix length is a host
+        ifaddr = ipaddress.ip_interface(local)
+    except ValueError:
+        perror('Error: inet prefix is expected rather than "%s".' % local)
+        exit(1)
+    if af in (4, 6) and af != ifaddr.version:
+        return False
+    if scope is not None:
+        expected = addr_scope(str(ifaddr.ip))
+        if scope not in [expected, str(ADDR_SCOPES[expected])]:
+            not_implemented(
+                "scope " + scope, "macOS sets the scope from the address"
+            )
+
+    dev = kernel_ifname(dev)
+    exists = addr_exists(dev, ifaddr.ip)
+    if verb == "add" and exists:
+        perror("RTNETLINK answers: File exists")
+        exit(2)
+
     cmd = [SUDO, IFCONFIG, dev]
-    if ":" in addr or af == 6:
-        af = 6
+    if ifaddr.version == 6:
         cmd.append("inet6")
-    cmd.extend(["add", addr])
-    if dst:
-        cmd.append(dst)
+    cmd.extend(["add", str(ifaddr)])
+    if peer:
+        cmd.append(peer)
+    if brd not in [None, "+"]:
+        if ifaddr.version == 6:
+            return False
+        cmd.extend(["broadcast", brd])
+    for name, value in lifetimes.items():
+        if value == "forever":
+            continue
+        if ifaddr.version == 4:
+            not_implemented(name, "macOS IPv4 addresses do not expire")
+        if not value.isdigit():
+            return False
+        cmd.extend(["vltime" if name == "valid_lft" else "pltime", value])
+    if ifaddr.version == 6 and (nodad or exists):
+        # macOS checks again an address that it adds a second time
+        return execute_cmd_nodad(cmd)
     return execute_cmd(cmd)
 
 

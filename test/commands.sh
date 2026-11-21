@@ -269,6 +269,36 @@ $ip_cmd addr show dev lo0 | grep 'inet 127.0.0.1/8'
 
 ! $ip_cmd addr flush dev iproute2mac0
 
+## add, change, replace
+
+$ip_cmd link add ipr2mdummy1 type dummy
+$ip_cmd link set ipr2mdummy1 up
+kdev=$($ip_cmd link show dev ipr2mdummy1 | awk '/altname/ {print $2}')
+# a host address without a prefix length, like iproute2
+$ip_cmd addr add 192.0.2.241 dev ipr2mdummy1
+$ip_cmd addr show dev ipr2mdummy1 | grep 'inet 192.0.2.241/32'
+! $ip_cmd addr add 192.0.2.241/32 dev ipr2mdummy1
+$ip_cmd addr replace 192.0.2.241/32 dev ipr2mdummy1
+$ip_cmd addr add 192.0.2.242/24 brd 192.0.2.127 dev ipr2mdummy1
+$ip_cmd addr show dev ipr2mdummy1 | grep 'inet 192.0.2.242/24 brd 192.0.2.127'
+$ip_cmd addr add 192.0.2.243/32 dev ipr2mdummy1 scope global
+
+dad_count=$(sysctl -n net.inet6.ip6.dad_count)
+$ip_cmd -6 addr add 2001:db8:241::1/64 dev ipr2mdummy1 nodad
+ifconfig $kdev | grep '2001:db8:241::1 '
+! ifconfig $kdev | grep '2001:db8:241::1 .*tentative'
+test "$(sysctl -n net.inet6.ip6.dad_count)" = "$dad_count"
+$ip_cmd -6 addr change 2001:db8:241::1/64 dev ipr2mdummy1 preferred_lft 0 valid_lft 3600
+ifconfig -L $kdev | grep -E '2001:db8:241::1 .*pltime 0 vltime 3600'
+
+! $ip_cmd addr add 192.0.2.244/32 dev ipr2mdummy1 scope link
+! $ip_cmd addr add 192.0.2.244/32 dev ipr2mdummy1 noprefixroute
+! $ip_cmd addr add 192.0.2.244/32 dev ipr2mdummy1 valid_lft 60
+! $ip_cmd addr show dev ipr2mdummy1 | grep 192.0.2.244
+! $ip_cmd addr add 192.0.2.244/32 dev ipr2mnone0
+! $ip_cmd addr add 192.0.2.244/32
+$ip_cmd link del ipr2mdummy1
+
 ## brief format tests
 
 # Test basic -br addr show

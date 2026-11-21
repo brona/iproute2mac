@@ -28,6 +28,7 @@ ROUTE = "/sbin/route"
 NETSTAT = "/usr/sbin/netstat"
 NDP = "/usr/sbin/ndp"
 ARP = "/usr/sbin/arp"
+SYSCTL = "/usr/sbin/sysctl"
 NETWORKSETUP = "/usr/sbin/networksetup"
 
 HELP_ADDENDUM = """iproute2mac

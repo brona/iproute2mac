@@ -99,6 +99,9 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * List IPv6 addresses `ip -6 addr`
   * List the addresses of an interface that are in a prefix `ip addr show dev en0 to 192.0.2.0/24`
   * Add address to interface `ip addr add 10.0.0.5/24 dev en0`
+  * Add an IPv6 address without duplicate address detection `ip -6 addr add 2001:db8::5/64 dev en0 nodad`, with lifetimes `ip -6 addr add 2001:db8::5/64 dev en0 valid_lft 3600 preferred_lft 1800`
+  * Change or replace an address `ip -6 addr change 2001:db8::5/64 dev en0 preferred_lft 0`
+  * macOS has no `noprefixroute`, labels, nor lifetimes of IPv4 addresses, and sets the scope from the address
   * Remove address from interface `ip addr del 10.0.0.5 dev en0`
   * Remove the addresses of an interface `ip addr flush dev en0`, the global IPv6 ones `ip -6 addr flush dev en0 scope global`
 * Route module
