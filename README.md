@@ -76,6 +76,10 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Set **random MAC** address `ip link set en0 address random`
   * Set **factory default MAC** address `ip link set en0 address factory`
   * Set MTU `ip link set dev en0 mtu 9000`
+  * Add a dummy interface `ip link add dummy0 type dummy`, a pair of virtual Ethernet interfaces `ip link add veth0 type veth peer name veth1`, a VLAN `ip link add link en0 name en0.100 type vlan id 100`, a bridge `ip link add br0 type bridge`, an 802.3ad bond `ip link add bond0 type bond`
+  * Add an interface to a bridge or a bond `ip link set dev veth1 master br0`, remove it `ip link set dev veth1 nomaster`
+  * Delete an interface `ip link del dummy0`
+  * macOS names these interfaces `feth`N, `vlan`N, `bridge`N and `bond`N, and cannot rename them: iproute2mac keeps the name given in `/var/run/iproute2mac/names.json`, accepts it everywhere and shows it, with the macOS name as `altname`. Like on Linux, a name given again gets its former interface, and a new name an interface that no other name had (macOS would reuse the lowest free one), so that a routing daemon does not take an interface for another. A dummy interface is a `feth` with a hidden peer, so that it has a carrier.
 * Neighbour module (ARP/NDP)
   * Show all neighbours `ip neigh`
   * Show all IPv4 (ARP) neighbours `ip -4 neigh`

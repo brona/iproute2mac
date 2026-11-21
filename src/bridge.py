@@ -141,8 +141,9 @@ def do_link_show(argv, json_print, pretty_json, color, oneline):
             return False
         else:
             argv.pop(0)
+    names = names_load()
     if len(argv) > 0:
-        dev = argv[0]
+        dev = kernel_ifname(argv[0], names)
     else:
         dev = None
 
@@ -175,6 +176,12 @@ def do_link_show(argv, json_print, pretty_json, color, oneline):
                     "cost": slave["cost"],
                 }
             )
+
+    # the interfaces that "ip link add" created have the name it was given
+    aliases = ifname_aliases(names)
+    for b in bridges:
+        b["ifname"] = aliases.get(b["ifname"], b["ifname"])
+        b["master"] = aliases.get(b["master"], b["master"])
 
     if json_print:
         return json_dump(bridges, pretty_json)

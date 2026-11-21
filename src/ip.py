@@ -11,6 +11,7 @@
 """
 
 import ipaddress
+import json
 import os
 import re
 import socket
@@ -149,10 +150,11 @@ def link_addr_show(
             exit(1)
         del argv[at : at + 2]
 
+    names = names_load()
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
-        cmd.append(argv[0])
+        cmd.append(kernel_ifname(argv[0], names))
     else:
         cmd.append("-a")
 
@@ -161,12 +163,21 @@ def link_addr_show(
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
         if cmd[-1] != "-a":
-            perror('Device "%s" does not exist.' % cmd[-1])
+            perror('Device "%s" does not exist.' % argv[0])
             exit(1)
         perror((res.stderr + res.stdout).strip())
         return False
 
     links = parse_ifconfig(res.stdout, af, address)
+
+    # the interfaces that "ip link add" created have the name it was given
+    hidden = hidden_ifnames(names)
+    aliases = ifname_aliases(names)
+    links = [l for l in links if l["ifname"] not in hidden]
+    for l in links:
+        if aliases.get(l["ifname"], l["ifname"]) != l["ifname"]:
+            l["altnames"] = [l["ifname"]]
+            l["ifname"] = aliases[l["ifname"]]
 
     # Keep the addresses that are in the requested prefix
     if prefix is not None:
@@ -251,6 +262,8 @@ def link_addr_show(
                         else ""
                     )
                 )
+                for altname in l.get("altnames", []):
+                    lines.append("    altname " + altname)
                 print(output_separator.join(lines))
 
             for a in l.get("addr_info", []):
@@ -330,11 +343,17 @@ def do_help_addr():
 
 
 def do_help_link():
-    perror("Usage: ip link set dev DEVICE")
+    perror("Usage: ip link add [ link DEV ] [ name ] NAME [ address LLADDR ]")
+    perror("                   [ mtu MTU ] type TYPE [ ARGS ]")
+    perror("       ip link delete [ dev ] DEVICE")
+    perror("       ip link set dev DEVICE")
     perror("                [ { up | down } ]")
     perror("                [ address { LLADDR | factory | random } ]")
     perror("                [ mtu MTU ]")
+    perror("                [ master DEVICE | nomaster ]")
     perror("       ip link show [ DEVICE ] [up]")
+    perror("TYPE := { dummy | veth [ peer [ name ] NAME ] | vlan id ID |")
+    perror("          bridge | bond [ mode 802.3ad ] }")
     exit(255)
 
 
@@ -434,6 +453,11 @@ def do_route_list(argv, af, json_print, pretty_json, color):
     if exact:
         routes = [route for route in routes if route.get("dst") == exact]
 
+    aliases = ifname_aliases()
+    for route in routes:
+        if route.get("dev") in aliases:
+            route["dev"] = aliases[route["dev"]]
+
     if json_print:
         return json_dump(routes, pretty_json)
 
@@ -469,11 +493,6 @@ ROUTE_TYPES = {"unicast": None, "blackhole": "-blackhole"}
 ROUTE_TYPES.update({"unreachable": "-reject", "prohibit": "-reject"})
 
 
-def not_implemented(what, why):
-    perror('iproute2mac: "%s" is not implemented, %s.' % (what, why))
-    exit(1)
-
-
 def parse_route(argv, af):
     """
     Parse ROUTE := [ TYPE ] PREFIX [ INFO_SPEC ] of "ip route add | del |
@@ -496,7 +515,7 @@ def parse_route(argv, af):
                 gateway = argv.pop(0)
             route["via"] = gateway
         elif arg in ["dev", "oif"] and argv:
-            route["dev"] = argv.pop(0)
+            route["dev"] = kernel_ifname(argv.pop(0))
         elif arg == "src" and argv:
             route["src"] = argv.pop(0)
         elif arg == "mtu" and argv:
@@ -661,6 +680,7 @@ def do_route_get(argv, af, json_print, pretty_json, color):
     )
 
     route = {"dst": res["route to"], "dev": res["interface"]}
+    route["dev"] = ifname_aliases().get(route["dev"], route["dev"])
 
     if "gateway" in res:
         route["gateway"] = res["gateway"]
@@ -765,7 +785,7 @@ def do_addr_flush(argv, af):
         perror("Flush requires arguments.")
         exit(1)
 
-    cmd = [IFCONFIG, "-v", dev if dev else "-a"]
+    cmd = [IFCONFIG, "-v", kernel_ifname(dev) if dev else "-a"]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
         perror('Device "%s" does not exist.' % dev)
@@ -808,7 +828,7 @@ def do_addr_add(argv, af):
         return False
     try:
         addr = argv[0]
-        dev = argv[1]
+        dev = kernel_ifname(argv[1])
     except IndexError:
         perror("dev not found")
         exit(1)
@@ -829,7 +849,7 @@ def do_addr_del(argv, af):
         argv.pop(1)
     try:
         addr = argv[0]
-        dev = argv[1]
+        dev = kernel_ifname(argv[1])
     except IndexError:
         perror("dev not found")
         exit(1)
@@ -849,6 +869,12 @@ def do_link(argv, af, json_print, pretty_json, color, brief, oneline):
     if strict_startswith("set", argv[0]):
         argv.pop(0)
         return do_link_set(argv, af)
+    elif strict_startswith("add", argv[0]):
+        argv.pop(0)
+        return do_link_add(argv, af)
+    elif strict_startswith("delete", argv[0]):
+        argv.pop(0)
+        return do_link_del(argv, af)
     elif any_startswith(["show", "lst", "list"], argv[0]):
         argv.pop(0)
         return do_link_show(
@@ -877,12 +903,22 @@ def do_link_set(argv, af):
     if argv[0] == "dev":
         argv.pop(0)
 
-    dev = argv[0]
+    dev = argv[0] = kernel_ifname(argv[0])
 
     ifconfig_dev_cmd = [SUDO, IFCONFIG, dev]
     try:
         args = iter(argv)
         for arg in args:
+            if arg in ["netns", "vrf"]:
+                not_implemented(
+                    arg, "macOS has no network namespaces nor VRFs"
+                )
+            elif arg == "name":
+                not_implemented(arg, "macOS cannot rename an interface")
+            elif arg == "master":
+                link_set_master(dev, next(args))
+            elif arg == "nomaster":
+                link_set_nomaster(dev)
             if arg == "up":
                 if not execute_cmd(ifconfig_dev_cmd + ["up"]):
                     return False
@@ -916,6 +952,247 @@ def do_link_set(argv, af):
     except Exception:
         return False
     return True
+
+
+# Interfaces of "ip link add": the driver of macOS that implements a type
+LINK_DRIVERS = {
+    "dummy": "feth",
+    "veth": "feth",
+    "vlan": "vlan",
+    "bridge": "bridge",
+    "bond": "bond",
+}
+
+
+# The interfaces that "ip link add" gave to each name
+UNITS_FILE = os.path.join(RUNDIR, "units.json")
+
+
+def units_load():
+    try:
+        with open(UNITS_FILE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def clone_create(driver, existing, units, name=None):
+    """
+    Create an interface of a driver, return its name (feth0, ...).
+
+    macOS would take the lowest free unit. Like on Linux, give a name its
+    former interface again, and a new name an interface that no other name
+    had, so that a routing daemon does not take an interface for another.
+    A name of an interface of the driver (feth3) gets that interface.
+    """
+    ifname = units.get(name, "")
+    if name and re.match(r"^%s\d+$" % driver, name) and name not in existing:
+        ifname = name
+    elif not re.match(r"^%s\d+$" % driver, ifname) or ifname in existing:
+        taken = existing | set(units.values())
+        unit = 0
+        while "%s%d" % (driver, unit) in taken:
+            unit += 1
+        ifname = "%s%d" % (driver, unit)
+    execute_cmd([SUDO, IFCONFIG, ifname, "create"])
+    existing.add(ifname)
+    if name:
+        units[name] = ifname
+    return ifname
+
+
+def random_laa():
+    """A random locally administered MAC address, like Linux gives to a new
+    dummy or veth (all feth interfaces of macOS start with the same one)."""
+    mac = [random.randint(0x00, 0xFF) for _ in range(6)]
+    mac[0] = (mac[0] & 0xFC) | 0x02
+    return ":".join("%02x" % x for x in mac)
+
+
+def do_link_add(argv, af):
+    # ip link add [ link DEV ] [ name ] NAME [ address LLADDR ] [ mtu MTU ]
+    #             type TYPE [ ARGS ]
+    names = names_load()
+    name = parent = lladdr = mtu = kind = None
+    while argv:
+        arg = argv.pop(0)
+        if arg == "type" and argv:
+            kind = argv.pop(0)
+            break
+        elif arg == "link" and argv:
+            parent = kernel_ifname(argv.pop(0), names)
+        elif arg in ["name", "dev"] and argv:
+            name = argv.pop(0)
+        elif arg in ["address", "addr", "lladdr"] and argv:
+            lladdr = argv.pop(0)
+        elif arg == "mtu" and argv:
+            mtu = argv.pop(0)
+        elif name is None:
+            name = arg
+        else:
+            return False
+    if name is None or kind is None:
+        return False
+    if kind not in LINK_DRIVERS:
+        not_implemented("type " + kind, "macOS has no such interface")
+
+    # ARGS of the type
+    peer = vlan_id = None
+    while argv:
+        arg = argv.pop(0)
+        if kind == "veth" and arg == "peer" and argv:
+            if argv[0] == "name":
+                argv.pop(0)
+            if not argv:
+                return False
+            peer = argv.pop(0)
+        elif kind == "vlan" and arg == "id" and argv:
+            vlan_id = argv.pop(0)
+        elif kind == "vlan" and arg == "protocol" and argv:
+            if argv.pop(0).lower() != "802.1q":
+                not_implemented("protocol", "macOS VLANs are 802.1Q")
+        elif kind == "bond" and arg == "mode" and argv:
+            if argv.pop(0) not in ["802.3ad", "4"]:
+                not_implemented("mode", "macOS bonds are 802.3ad (LACP)")
+        elif kind == "bridge" and arg in ["stp_state", "vlan_filtering"]:
+            if not argv or argv.pop(0) != "0":
+                not_implemented(arg, "macOS bridges have no such option")
+        else:
+            not_implemented(
+                arg, "macOS %s interfaces have no such option" % kind
+            )
+    if kind == "vlan" and (parent is None or vlan_id is None):
+        perror('Error: "link" and "id" are required for a vlan.')
+        exit(255)
+    if kind == "veth" and peer is None:
+        peer = "veth%d" % len([k for k in names if k.startswith("veth")])
+
+    existing = set(
+        subprocess.run([IFCONFIG, "-l"], capture_output=True, text=True)
+        .stdout.split()
+    )
+    for n in [name] + ([peer] if peer else []):
+        if len(n) > 15 or not n:
+            perror(
+                'Error: argument "%s" is wrong: "name" not a valid ifname' % n
+            )
+            exit(255)
+        if n in names or n in existing:
+            perror("RTNETLINK answers: File exists")
+            exit(2)
+
+    driver = LINK_DRIVERS[kind]
+    units = units_load()
+    ifname = clone_create(driver, existing, units, name)
+    entry = {"ifname": ifname, "kind": kind}
+    if kind == "dummy":
+        # a feth has a carrier when it has a peer: give it a hidden one
+        entry["hidden"] = clone_create("feth", existing, units)
+        execute_cmd([SUDO, IFCONFIG, ifname, "peer", entry["hidden"]])
+    elif kind == "veth":
+        peer_ifname = clone_create("feth", existing, units, peer)
+        execute_cmd([SUDO, IFCONFIG, ifname, "peer", peer_ifname])
+        entry["peer"] = peer
+        names[peer] = {"ifname": peer_ifname, "kind": kind, "peer": name}
+    elif kind == "vlan":
+        execute_cmd(
+            [SUDO, IFCONFIG, ifname, "vlan", vlan_id, "vlandev", parent]
+        )
+    names[name] = entry
+    names_save(names)
+    save_state(UNITS_FILE, units)
+    if kind in ["dummy", "veth"]:
+        execute_cmd([SUDO, IFCONFIG, ifname, "lladdr", lladdr or random_laa()])
+        if kind == "veth":
+            execute_cmd(
+                [SUDO, IFCONFIG, names[peer]["ifname"], "lladdr", random_laa()]
+            )
+    elif lladdr:
+        execute_cmd([SUDO, IFCONFIG, ifname, "lladdr", lladdr])
+    if mtu:
+        execute_cmd([SUDO, IFCONFIG, ifname, "mtu", mtu])
+    return True
+
+
+def do_link_del(argv, af):
+    # ip link del [ dev ] NAME [ type TYPE ]
+    if argv and argv[0] == "dev":
+        argv.pop(0)
+    if not argv:
+        return False
+    name = argv.pop(0)
+    if argv and (argv[0] != "type" or len(argv) != 2):
+        return False
+    names = names_load()
+    entry = names.get(name)
+    ifname = entry["ifname"] if entry else name
+    existing = subprocess.run(
+        [IFCONFIG, "-l"], capture_output=True, text=True
+    ).stdout.split()
+    if ifname not in existing:
+        perror('Cannot find device "%s"' % name)
+        exit(1)
+
+    destroy = [ifname]
+    if entry:
+        if entry.get("hidden"):
+            destroy.append(entry["hidden"])
+        # deleting an end of a veth deletes the pair
+        peer = entry.get("peer")
+        if peer in names:
+            destroy.append(names.pop(peer)["ifname"])
+        names.pop(name)
+    for i in destroy:
+        execute_cmd([SUDO, IFCONFIG, i, "destroy"])
+    if entry:
+        names_save(names)
+    return True
+
+
+def master_kind(ifname, names=None):
+    """Kind of a bridge or bond interface, by its macOS name."""
+    for entry in (names or names_load()).values():
+        if entry["ifname"] == ifname and entry["kind"] in ["bridge", "bond"]:
+            return entry["kind"]
+    for kind in ["bridge", "bond"]:
+        if re.match(r"^%s\d+$" % kind, ifname):
+            return kind
+    return None
+
+
+def link_set_master(dev, master):
+    names = names_load()
+    kmaster = kernel_ifname(master, names)
+    kind = master_kind(kmaster, names)
+    if kind == "bridge":
+        execute_cmd([SUDO, IFCONFIG, kmaster, "addm", dev])
+    elif kind == "bond":
+        execute_cmd([SUDO, IFCONFIG, kmaster, "bonddev", dev])
+    else:
+        not_implemented(
+            "master " + master, "only a bridge or a bond can be a master"
+        )
+
+
+def link_set_nomaster(dev):
+    ifnames = subprocess.run(
+        [IFCONFIG, "-l"], capture_output=True, text=True
+    ).stdout.split()
+    for ifname in ifnames:
+        kind = master_kind(ifname)
+        if kind is None:
+            continue
+        out = subprocess.run(
+            [IFCONFIG, ifname], capture_output=True, text=True
+        ).stdout
+        if kind == "bridge" and re.search(
+            r"member: %s " % re.escape(dev), out
+        ):
+            execute_cmd([SUDO, IFCONFIG, ifname, "deletem", dev])
+        elif kind == "bond" and re.search(
+            r"bond interfaces:.* %s\b" % re.escape(dev), out
+        ):
+            execute_cmd([SUDO, IFCONFIG, ifname, "-bonddev", dev])
 
 
 # Neigh module
@@ -952,6 +1229,9 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
             prefix = ipaddress.ip_network(prefix, strict=False)
     except Exception:
         return False
+    aliases = ifname_aliases()
+    if dev:
+        dev = kernel_ifname(dev)
 
     nd_ll_states = {
         "R": "REACHABLE",
@@ -977,6 +1257,7 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
             entry["dev"] = cols[2]
             if dev and entry["dev"] != dev:
                 continue
+            entry["dev"] = aliases.get(entry["dev"], entry["dev"])
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
             if cols[1] == "(incomplete)" and cols[4] != "R":
@@ -1002,6 +1283,7 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
             entry["dev"] = cols[4]
             if dev and entry["dev"] != dev:
                 continue
+            entry["dev"] = aliases.get(entry["dev"], entry["dev"])
             if prefix and ipaddress.ip_address(entry["dst"]) not in prefix:
                 continue
             if cols[1] == "(incomplete)":
@@ -1044,7 +1326,7 @@ def do_neigh_flush(argv, af):
 
     if argv[0] != "dev":
         return False
-    dev = argv[1]
+    dev = kernel_ifname(argv[1])
 
     if af != 4:
         print(

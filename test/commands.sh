@@ -339,6 +339,66 @@ test $rc -eq 1
 grep -x 'Device "iproute2mac0" does not exist.' /tmp/iproute2mac-test.err
 rm -f /tmp/iproute2mac-test.err
 
+## add/del, master
+
+$ip_cmd link add ipr2mdummy0 type dummy
+$ip_cmd link show dev ipr2mdummy0 | grep -E '^[0-9]+: ipr2mdummy0: <.*> mtu 1500 state DOWN$'
+$ip_cmd link show dev ipr2mdummy0 | grep -E '^    altname feth[0-9]+$'
+$ip_cmd -j link show dev ipr2mdummy0 | grep '"ifname":"ipr2mdummy0"'
+# a random locally administered address, not the one of every feth
+$ip_cmd link show dev ipr2mdummy0 | grep -E 'link/ether [0-9a-f][26ae]:'
+! $ip_cmd link show dev ipr2mdummy0 | grep 'link/ether 66:65:74:68'
+$ip_cmd link set dev ipr2mdummy0 up
+$ip_cmd link show dev ipr2mdummy0 | grep -E 'LOWER_UP.* state UP$'
+$ip_cmd addr add 192.0.2.211/24 dev ipr2mdummy0
+$ip_cmd addr show dev ipr2mdummy0 | grep 'inet 192.0.2.211/24'
+$ip_cmd route show | grep 'dev ipr2mdummy0'
+! $ip_cmd link add ipr2mdummy0 type dummy
+$ip_cmd link del ipr2mdummy0
+! $ip_cmd link show dev ipr2mdummy0
+
+$ip_cmd link add ipr2mveth0 type veth peer name ipr2mveth1
+$ip_cmd link set ipr2mveth0 up
+$ip_cmd link set ipr2mveth1 up
+$ip_cmd link show dev ipr2mveth1 | grep 'LOWER_UP'
+$ip_cmd link add link ipr2mveth0 name ipr2mveth0.100 type vlan id 100
+$ip_cmd link set dev ipr2mveth0.100 up
+$ip_cmd -j link show dev ipr2mveth0.100 | grep '"ifname":"ipr2mveth0.100"'
+$ip_cmd link add name ipr2mbr0 type bridge stp_state 0
+$ip_cmd link set ipr2mveth1 master ipr2mbr0
+$bridge_cmd link show | grep 'ipr2mveth1: .* master ipr2mbr0 '
+$ip_cmd link set ipr2mveth1 nomaster
+! $bridge_cmd link show | grep 'ipr2mveth1'
+$ip_cmd link del ipr2mbr0
+$ip_cmd link del ipr2mveth0.100
+$ip_cmd link del dev ipr2mveth0
+! $ip_cmd link show dev ipr2mveth1
+
+$ip_cmd link add ipr2mbond0 type bond mode 802.3ad
+$ip_cmd link del ipr2mbond0
+
+# a new name gets an interface that no other name had, a name given again
+# its former interface
+$ip_cmd link add ipr2mdumA type dummy
+kdevA=$($ip_cmd link show dev ipr2mdumA | awk '/altname/ {print $2}')
+$ip_cmd link del ipr2mdumA
+$ip_cmd link add ipr2mdumB type dummy
+test "$($ip_cmd link show dev ipr2mdumB | awk '/altname/ {print $2}')" != "$kdevA"
+$ip_cmd link add ipr2mdumA type dummy
+test "$($ip_cmd link show dev ipr2mdumA | awk '/altname/ {print $2}')" = "$kdevA"
+$ip_cmd link del ipr2mdumA
+$ip_cmd link del ipr2mdumB
+# the name of a macOS interface gets that interface
+$ip_cmd link add $kdevA type dummy
+$ip_cmd link show dev $kdevA | grep -E "^[0-9]+: $kdevA: "
+! $ip_cmd link show dev $kdevA | grep altname
+$ip_cmd link del $kdevA
+
+! $ip_cmd link add ipr2mvrf0 type vrf table 10
+! $ip_cmd link add ipr2mtoolongname0 type dummy
+! $ip_cmd link set dev lo0 name ipr2mlo
+! $ip_cmd link del ipr2mnone0
+
 ## link brief format tests
 
 # Test basic -br link show
