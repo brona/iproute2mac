@@ -21,6 +21,16 @@ from operator import itemgetter
 from iproute2mac import *
 
 
+# Scope of an address, as iproute2 names it
+def addr_scope(local):
+    ip = ipaddress.ip_address(local)
+    if ip.is_loopback:
+        return "host"
+    if ip.is_link_local:
+        return "link"
+    return "global"
+
+
 # Decode ifconfig output
 def parse_ifconfig(res, af, address):
     links = []
@@ -72,6 +82,7 @@ def parse_ifconfig(res, af, address):
                     addr["broadcast"] = re.findall(
                         r"broadcast (\d+\.\d+\.\d+\.\d+)", r
                     )[0]
+                addr["scope"] = addr_scope(local)
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif address and re.match(r"^\s+inet6 ", r) and af != 4:
                 (local, peer, prefixlen) = re.findall(
@@ -85,6 +96,7 @@ def parse_ifconfig(res, af, address):
                 }
                 if peer:
                     addr["address"] = peer
+                addr["scope"] = addr_scope(local)
                 link["addr_info"] = link.get("addr_info", []) + [addr]
             elif match := re.search(r"^\s+status: (\w+)", r):
                 status = match.group(1)
@@ -229,6 +241,7 @@ def link_addr_show(
                         if "broadcast" in a
                         else ""
                     )
+                    + " scope %s" % a["scope"]
                 )
 
     return True

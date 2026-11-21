@@ -153,6 +153,14 @@ $ip_cmd -6 -j addr show | tee | perl -MJSON -e 'decode_json(<STDIN>)'
 
 $ip_cmd -j -p -6 addr show dev lo0 | grep '"local": "::1"'
 
+$ip_cmd -4 addr show dev lo0 | grep 'inet 127.0.0.1/8 scope host'
+
+$ip_cmd -6 addr show dev lo0 | grep 'inet6 ::1/128 scope host'
+
+$ip_cmd -6 addr show dev lo0 | grep 'inet6 fe80::1/64 scope link'
+
+$ip_cmd -j -p -6 addr show dev lo0 | grep '"scope": "link"'
+
 $ip_cmd ad sho
 
 $ip_cmd a s
