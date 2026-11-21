@@ -6,6 +6,7 @@ rundir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
 ip_cmd="$rundir"/../src/ip.py
 bridge_cmd="$rundir"/../src/bridge.py
 ss_cmd="$rundir"/../src/ss.py
+tc_cmd="$rundir"/../src/tc.py
 ip_prefix=192.0.2
 ip_dest=$ip_prefix.99/32
 ip_via=$ip_prefix.98
@@ -561,5 +562,51 @@ $ss_cmd -nat
 $ss_cmd --unix
 
 ! $ss_cmd asdf
+
+# tc
+
+$tc_cmd -V
+$tc_cmd help 2>&1 >/dev/null | grep "Usage: tc"
+$tc_cmd qdisc help 2>&1 >/dev/null | grep "Usage: tc qdisc"
+
+$ip_cmd link add ipr2mdummy2 type dummy
+$ip_cmd link set ipr2mdummy2 up
+kdev=$($ip_cmd link show dev ipr2mdummy2 | awk '/altname/ {print $2}')
+anchor=com.apple/iproute2mac
+
+# a netem, then a tbf under it
+$tc_cmd qdisc add dev ipr2mdummy2 root handle 1: netem delay 10000usec loss 1%
+$tc_cmd qdisc add dev ipr2mdummy2 parent 1: handle 2 tbf rate 100.0kbit limit 1518 burst 3036
+$tc_cmd qdisc show dev ipr2mdummy2 | grep -x 'qdisc netem 1: root delay 10ms loss 1%'
+$tc_cmd qdisc show dev ipr2mdummy2 | grep -x 'qdisc tbf 2: parent 1: rate 100Kbit burst 3036b limit 1518b'
+$tc_cmd qdisc show | grep 'qdisc netem 1: dev ipr2mdummy2 root'
+sudo dnctl list | grep -E '^[0-9]+: +100.000 Kbit/s +10 ms +2048 Bplr 0.010000 '
+sudo pfctl -a $anchor -s dummynet 2>/dev/null | grep "dummynet out quick on $kdev all pipe"
+sudo pfctl -s info 2>/dev/null | grep 'Status: Enabled'
+
+! $tc_cmd qdisc add dev ipr2mdummy2 root netem delay 20ms
+$tc_cmd qdisc replace dev ipr2mdummy2 root handle 1: netem delay 20ms
+$tc_cmd qdisc show dev ipr2mdummy2 | grep -x 'qdisc netem 1: root delay 20ms'
+$tc_cmd qdisc show dev ipr2mdummy2 | grep 'qdisc tbf 2: parent 1:'
+$tc_cmd qdisc change dev ipr2mdummy2 parent 1: handle 2: tbf rate 1mbit burst 10kb latency 50ms
+$tc_cmd qdisc show dev ipr2mdummy2 | grep -x 'qdisc tbf 2: parent 1: rate 1Mbit burst 10240b lat 50ms'
+! $tc_cmd qdisc change dev ipr2mdummy2 root netem loss 100%
+$tc_cmd qdisc replace dev ipr2mdummy2 root tbf rate 1mbit burst 10kb limit 10kb
+test "$($tc_cmd qdisc show dev ipr2mdummy2)" = "qdisc tbf 1: root rate 1Mbit burst 10240b limit 10240b"
+
+$tc_cmd qdisc del dev ipr2mdummy2 root
+test -z "$($tc_cmd qdisc show dev ipr2mdummy2)"
+! sudo pfctl -a $anchor -s dummynet 2>/dev/null | grep "on $kdev "
+! $tc_cmd qdisc del dev ipr2mdummy2 root
+
+# what dummynet does not do
+! $tc_cmd qdisc add dev ipr2mdummy2 root netem delay 10ms 2ms 25%
+! $tc_cmd qdisc add dev ipr2mdummy2 root netem delay 1500usec
+! $tc_cmd qdisc add dev ipr2mdummy2 root netem duplicate 1%
+! $tc_cmd qdisc add dev ipr2mdummy2 root handle 1: prio
+! $tc_cmd filter add dev ipr2mdummy2 parent 1: protocol ip u32 match ip dst 192.0.2.1/32 flowid 1:1
+! $tc_cmd qdisc add dev ipr2mnone0 root netem delay 10ms
+test -z "$($tc_cmd qdisc show dev ipr2mdummy2)"
+$ip_cmd link del ipr2mdummy2
 
 echo "Tests passed!!"

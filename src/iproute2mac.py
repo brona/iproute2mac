@@ -121,24 +121,29 @@ def names_load():
     return {k: v for k, v in names.items() if v.get("ifname") in existing}
 
 
-def names_save(names):
-    data = json.dumps(names, indent=2, sort_keys=True) + "\n"
+def save_state(path, state):
+    """Save the state of iproute2mac in RUNDIR, as root."""
+    data = json.dumps(state, indent=2, sort_keys=True) + "\n"
     if os.geteuid() == 0:
         os.makedirs(RUNDIR, exist_ok=True)
-        tmp = NAMES_FILE + ".tmp"
+        tmp = path + ".tmp"
         with open(tmp, "w") as f:
             f.write(data)
         os.chmod(tmp, 0o644)
-        os.replace(tmp, NAMES_FILE)
+        os.replace(tmp, path)
         return
     subprocess.run([SUDO, "/bin/mkdir", "-p", RUNDIR], check=True)
     subprocess.run(
-        [SUDO, "/usr/bin/tee", NAMES_FILE],
+        [SUDO, "/usr/bin/tee", path],
         input=data,
         text=True,
         stdout=subprocess.DEVNULL,
         check=True,
     )
+
+
+def names_save(names):
+    save_state(NAMES_FILE, names)
 
 
 def kernel_ifname(name, names=None):

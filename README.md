@@ -1,7 +1,7 @@
 iproute2mac
 ===========
 
-*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip`, `bridge` and `ss` commands*
+*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip`, `bridge`, `ss` and `tc` commands*
 
 Provided functionality is limited and command output is not fully compatible with [iproute2].\
 Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.\
@@ -33,6 +33,7 @@ git clone https://github.com/brona/iproute2mac.git
 ln -s iproute2mac/src/ip.py /usr/local/bin/ip
 ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
 ln -s iproute2mac/src/ss.py /usr/local/bin/ss
+ln -s iproute2mac/src/tc.py /usr/local/bin/tc
 ```
 
 C) Using [MacPorts](https://www.macports.org/) (Maintained by [@i0ntempest](https://github.com/i0ntempest)):
@@ -66,6 +67,8 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * `bridge help`
   * `bridge link help`
   * `ss help`
+  * `tc help`
+  * `tc qdisc help`
 * Link module (Interfaces)
   * List local interfaces `ip link`
   * List interfaces in brief format `ip -br link`
@@ -131,6 +134,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Show IPv6 sockets `ss -6`
   * Show socket statistics `ss -s`
   * Show all sockets (including listening) `ss -a`
+* Traffic control (tc), with the dummynet of macOS
+  * Delay and drop the packets sent on an interface `tc qdisc add dev en0 root handle 1: netem delay 100ms loss 1%`
+  * Limit their rate `tc qdisc add dev en0 root tbf rate 1mbit burst 32kb latency 50ms`, or under a netem `tc qdisc add dev en0 parent 1: tbf rate 1mbit burst 32kb limit 64kb`
+  * Show the qdiscs `tc qdisc show dev en0`, change one `tc qdisc replace dev en0 root netem loss 100%`, delete them `tc qdisc del dev en0 root`
+  * An interface with qdiscs gets a dummynet pipe, and pf, enabled while an interface has qdiscs, sends it the packets with a rule in the anchor `com.apple/iproute2mac`. dummynet delays in milliseconds, and has no jitter, correlation, burst, classes nor filters
 * JSON output
   * List interfaces: `ip -j link show`
   * List addresses: `ip -j addr show`
