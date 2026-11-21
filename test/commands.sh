@@ -98,8 +98,24 @@ $ip_cmd -c rou get 127.0.0.1
 
 ## add/delete
 
-$ip_cmd route add $ip_dest via $ip_via
+# like iproute2, silent on success when the output is not a terminal
+test -z "$($ip_cmd route add $ip_dest via $ip_via)"
 netstat -anr | grep "$ip_dest" | grep "$ip_via"
+
+$ip_cmd route delete $ip_dest via $ip_via
+! netstat -anr | grep "$ip_dest"
+
+IPROUTE2MAC_VERBOSE=1 $ip_cmd route add $ip_dest via $ip_via | grep "^Executing: "
+netstat -anr | grep "$ip_dest" | grep "$ip_via"
+
+# exit status 2 when the change is refused, without the usage
+set +e
+$ip_cmd route add $ip_dest via $ip_via 2>/tmp/iproute2mac-test.err
+rc=$?
+set -e
+test $rc -eq 2
+! grep -i "usage" /tmp/iproute2mac-test.err
+rm -f /tmp/iproute2mac-test.err
 
 $ip_cmd route delete $ip_dest via $ip_via
 ! netstat -anr | grep "$ip_dest"
@@ -238,6 +254,14 @@ $ip_cmd lin lst | grep mtu
 ! $ip_cmd l s
 
 ! $ip_cmd link asdf
+
+set +e
+$ip_cmd link show dev iproute2mac0 2>/tmp/iproute2mac-test.err
+rc=$?
+set -e
+test $rc -eq 1
+grep -x 'Device "iproute2mac0" does not exist.' /tmp/iproute2mac-test.err
+rm -f /tmp/iproute2mac-test.err
 
 ## link brief format tests
 

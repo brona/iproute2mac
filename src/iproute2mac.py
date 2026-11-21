@@ -37,32 +37,48 @@ Provided functionality is limited and command output is not fully compatible wit
 For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly."""  # noqa: E501
 
 
+VERBOSE = sys.stdout.isatty() or bool(os.environ.get("IPROUTE2MAC_VERBOSE"))
+
+
 # Helper functions
 def perror(*args):
     sys.stderr.write(*args)
     sys.stderr.write("\n")
 
 
-def execute_cmd(cmd):
+def execute_cmd(cmd, check=True):
+    """Run a command changing the system.
+
+    On failure, print its error and exit with status 2 like iproute2 when the
+    kernel refuses a change, unless check is False: then return False.
+    """
     if not isinstance(cmd, list):
         raise TypeError(
             "execute_cmd requires a list of argument strings, got %s"
             % type(cmd).__name__
         )
-    print("Executing: %s" % " ".join(cmd))
+    if cmd and cmd[0] == SUDO and os.geteuid() == 0:
+        cmd = cmd[1:]
+    if VERBOSE:
+        print("Executing: %s" % " ".join(cmd))
     res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode == 0:
-        if res.stderr:
-            perror(res.stderr.strip())
-        if res.stdout:
-            print(res.stdout, end="")
+    # route(8) exits with 0 when the routing socket refuses the change
+    tool = cmd[1] if cmd[0] == SUDO and len(cmd) > 1 else cmd[0]
+    refused = tool == ROUTE and "writing to routing socket" in res.stderr
+    if res.returncode == 0 and not refused:
+        if VERBOSE:
+            if res.stderr:
+                perror(res.stderr.strip())
+            if res.stdout:
+                print(res.stdout, end="")
         return True
-    else:
-        if res.stderr:
-            perror(res.stderr.strip())
-        if res.stdout:
-            perror(res.stdout.strip())
-        return False
+    if res.stderr:
+        perror(res.stderr.strip())
+    if res.stdout:
+        perror(res.stdout.strip())
+    if check:
+        exit(2)
+    return False
 
 
 def json_dump(data, pretty):

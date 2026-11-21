@@ -143,11 +143,10 @@ def link_addr_show(
 
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
-        out = (res.stderr + res.stdout).strip()
-        if out == "":
-            perror(" ".join(cmd[2:]) + " not found")
-        else:
-            perror(out)
+        if cmd[-1] != "-a":
+            perror('Device "%s" does not exist.' % cmd[-1])
+            exit(1)
+        perror((res.stderr + res.stdout).strip())
         return False
 
     links = parse_ifconfig(res.stdout, af, address)

@@ -44,6 +44,14 @@ D) Using [NixOS](https://nixos.org/) (Maintained by [@jiegec](https://github.com
 See https://search.nixos.org/packages?show=iproute2mac&type=packages&query=iproute2mac and [package.nix](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/ip/iproute2mac/package.nix)
 
 
+## Scripting
+
+When its output is not a terminal, `ip` behaves like iproute2 for scripts:
+
+* It prints nothing when a change succeeds, set `IPROUTE2MAC_VERBOSE=1` to see the macOS commands it runs.
+* It exits with status 2 when macOS refuses a change, 1 when a device does not exist and 255 on a usage error.
+* It runs the macOS commands without `sudo` when it is run as root.
+
 ## Supported commands / Example usage
 
 Goal of this utility is to provide compatible CLI with [iproute2], supporting same command shortcuts and user experience.
