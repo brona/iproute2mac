@@ -82,6 +82,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * List all addresses in brief format `ip -br addr`
   * List IPv4 addresses `ip -4 addr`
   * List IPv6 addresses `ip -6 addr`
+  * List the addresses of an interface that are in a prefix `ip addr show dev en0 to 192.0.2.0/24`
   * Add address to interface `ip addr add 10.0.0.5/24 dev en0`
   * Remove address from interface `ip addr del 10.0.0.5 dev en0`
 * Route module

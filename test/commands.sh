@@ -161,6 +161,22 @@ $ip_cmd -6 addr show dev lo0 | grep 'inet6 fe80::1/64 scope link'
 
 $ip_cmd -j -p -6 addr show dev lo0 | grep '"scope": "link"'
 
+$ip_cmd addr show dev lo0 to 127.0.0.0/8 | grep 'inet 127.0.0.1/8'
+
+! $ip_cmd addr show dev lo0 to 127.0.0.0/8 | grep 'inet6'
+
+$ip_cmd -6 addr show to ::1/128 | grep 'inet6 ::1/128'
+
+! $ip_cmd -6 addr show to ::1/128 | grep 'fe80::'
+
+$ip_cmd -j addr show to 127.0.0.1 | grep '"local":"127.0.0.1"'
+
+test -z "$($ip_cmd addr show dev lo0 to 192.0.2.0/24)"
+
+! $ip_cmd addr show to asdf
+
+! $ip_cmd addr show dev lo0 to
+
 $ip_cmd ad sho
 
 $ip_cmd a s

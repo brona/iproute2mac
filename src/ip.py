@@ -116,6 +116,22 @@ def link_addr_show(
         argv.remove("up")
         cmd.append("-u")
 
+    # ip addr show [ dev STRING ] [ to PREFIX ]
+    prefix = None
+    if address and "to" in argv:
+        at = argv.index("to")
+        if at + 1 >= len(argv):
+            return False
+        try:
+            prefix = ipaddress.ip_network(argv[at + 1], strict=False)
+        except ValueError:
+            perror(
+                'Error: any valid prefix is expected rather than "%s".'
+                % argv[at + 1]
+            )
+            exit(1)
+        del argv[at : at + 2]
+
     if len(argv) > 0 and argv[0] == "dev":
         argv.pop(0)
     if len(argv) > 0:
@@ -136,8 +152,18 @@ def link_addr_show(
 
     links = parse_ifconfig(res.stdout, af, address)
 
-    # Filter out interfaces with no addresses of the requested family
-    if address and af in (4, 6):
+    # Keep the addresses that are in the requested prefix
+    if prefix is not None:
+        for l in links:
+            l["addr_info"] = [
+                a
+                for a in l.get("addr_info", [])
+                if ipaddress.ip_address(a["local"]).version == prefix.version
+                and ipaddress.ip_address(a["local"]) in prefix
+            ]
+
+    # Filter out interfaces with no addresses of the requested family or prefix
+    if address and (af in (4, 6) or prefix is not None):
         links = [l for l in links if l.get("addr_info")]
 
     if json_print:
@@ -280,7 +306,7 @@ def do_help_route():
 
 
 def do_help_addr():
-    perror("Usage: ip addr show [ dev STRING ] [up]")
+    perror("Usage: ip addr show [ dev STRING ] [ to PREFIX ] [up]")
     perror("       ip addr { add | del } PREFIX dev STRING")
     exit(255)
 
