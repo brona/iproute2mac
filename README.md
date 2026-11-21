@@ -105,7 +105,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Add default route `ip route add default nexthop 10.0.0.1`
   * Replace static route `ip route replace 192.0.2.0/24 dev utun1`
+  * Change the gateway of a static route `ip route change 192.168.0.0/16 via 10.0.0.2`
+  * Add a route with a source address (an address of the outgoing interface on macOS) and an MTU `ip route add 192.0.2.0/24 via 10.0.0.1 src 10.0.0.5 mtu 1400`
+  * Add a route rejecting the packets `ip route add unreachable 192.0.2.0/24`, or discarding them `ip route add blackhole 192.0.2.0/24`
   * Remove static route `ip route del 192.168.0.0/16`
+  * macOS routes have no metric and macOS has one routing table: `metric`, `table` other than `main` and `proto` other than `static` are not implemented
 * Bridge module
   * List bridge interfaces `bridge link`
   * List one bridged interface `bridge link show dev en2`

@@ -50,7 +50,8 @@ def execute_cmd(cmd, check=True):
     """Run a command changing the system.
 
     On failure, print its error and exit with status 2 like iproute2 when the
-    kernel refuses a change, unless check is False: then return False.
+    kernel refuses a change, unless check is False: then return False, the
+    failure being expected.
     """
     if not isinstance(cmd, list):
         raise TypeError(
@@ -72,10 +73,11 @@ def execute_cmd(cmd, check=True):
             if res.stdout:
                 print(res.stdout, end="")
         return True
-    if res.stderr:
-        perror(res.stderr.strip())
-    if res.stdout:
-        perror(res.stdout.strip())
+    if check or VERBOSE:
+        if res.stderr:
+            perror(res.stderr.strip())
+        if res.stdout:
+            perror(res.stdout.strip())
     if check:
         exit(2)
     return False

@@ -310,14 +310,15 @@ def do_help(
 def do_help_route():
     perror("Usage: ip route list [[exact] PREFIX]")
     perror("       ip route get ADDRESS")
-    perror("       ip route { add | del | replace } ROUTE")
+    perror("       ip route { add | del | replace | change } ROUTE")
     perror("       ip route flush cache")
     perror("       ip route flush table main")
     perror("ROUTE := NODE_SPEC [ INFO_SPEC ]")
-    perror("NODE_SPEC := [ TYPE ] PREFIX")
-    perror("INFO_SPEC := NH")
-    perror("TYPE := { blackhole }")
-    perror("NH := { via ADDRESS | gw ADDRESS | nexthop ADDRESS | dev STRING }")
+    perror("NODE_SPEC := [ TYPE ] PREFIX [ table main ] [ proto static ]")
+    perror("INFO_SPEC := NH [ src ADDRESS ] [ mtu [ lock ] NUMBER ]")
+    perror("TYPE := { unicast | blackhole | unreachable | prohibit }")
+    perror("NH := { via ADDRESS | gw ADDRESS | nexthop ADDRESS }")
+    perror("      [ dev STRING ] | dev STRING")
     exit(255)
 
 
@@ -363,7 +364,10 @@ def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
         return do_route_del(argv, af)
     elif strict_startswith("replace", argv[0]) and len(argv) >= 3:
         argv.pop(0)
-        return do_route_del(argv, af) and do_route_add(argv, af)
+        return do_route_replace(argv, af)
+    elif strict_startswith("change", argv[0]) and len(argv) >= 3:
+        argv.pop(0)
+        return do_route_change(argv, af)
     elif strict_startswith("flush", argv[0]) and len(argv) >= 1:
         argv.pop(0)
         return do_route_flush(argv, af)
@@ -415,6 +419,9 @@ def do_route_list(argv, af, json_print, pretty_json, color):
         if flags.find("B") != -1:
             routes.append({"type": "blackhole", "dst": target, "flags": []})
             continue
+        if flags.find("R") != -1:
+            routes.append({"type": "unreachable", "dst": target, "flags": []})
+            continue
         if re.match(r"link.+", gw):
             routes.append(
                 {"dst": target, "dev": dev, "scope": "link", "flags": []}
@@ -458,65 +465,144 @@ def do_route_list(argv, af, json_print, pretty_json, color):
     return True
 
 
-def do_route_add(argv, af):
-    is_blackhole = False
-    if argv[0] == "blackhole":
-        argv.pop(0)
-        if len(argv) != 1:
-            return False
-        argv.append("via")
-        argv.append("::1" if ":" in argv[0] or af == 6 else "127.0.0.1")
-        is_blackhole = True
+ROUTE_TYPES = {"unicast": None, "blackhole": "-blackhole"}
+ROUTE_TYPES.update({"unreachable": "-reject", "prohibit": "-reject"})
 
-    if len(argv) not in (3, 5):
-        return False
 
-    if len(argv) == 5:
-        perror(
-            "iproute2mac: Ignoring last 2 arguments, not implemented: {} {}".format(
-                argv[3], argv[4]
-            )
-        )
+def not_implemented(what, why):
+    perror('iproute2mac: "%s" is not implemented, %s.' % (what, why))
+    exit(1)
 
-    prefix = argv[0]
-    cmd = [SUDO, ROUTE, "add"]
-    if ":" in prefix or af == 6:
+
+def parse_route(argv, af):
+    """
+    Parse ROUTE := [ TYPE ] PREFIX [ INFO_SPEC ] of "ip route add | del |
+    replace | change", return the route as a dict, or None.
+    """
+    argv = list(argv)
+    route = {"type": "unicast"}
+    if argv and argv[0] in ("throw", "local", "broadcast", "anycast", "nat"):
+        not_implemented(argv[0], "macOS has no such route type")
+    if argv and argv[0] in ROUTE_TYPES:
+        route["type"] = argv.pop(0)
+    if not argv:
+        return None
+    route["prefix"] = argv.pop(0)
+    while argv:
+        arg = argv.pop(0)
+        if arg in ["via", "nexthop", "gw"] and argv:
+            gateway = argv.pop(0)
+            if arg == "nexthop" and gateway == "via" and argv:
+                gateway = argv.pop(0)
+            route["via"] = gateway
+        elif arg in ["dev", "oif"] and argv:
+            route["dev"] = argv.pop(0)
+        elif arg == "src" and argv:
+            route["src"] = argv.pop(0)
+        elif arg == "mtu" and argv:
+            if argv[0] == "lock":
+                argv.pop(0)
+                route["mtu_lock"] = True
+            if not argv or not argv[0].isdigit():
+                return None
+            route["mtu"] = argv.pop(0)
+        elif arg == "scope" and argv:
+            # a route via a device only is scope link already
+            argv.pop(0)
+        elif arg in ["table", "proto", "protocol"] and argv:
+            value = argv.pop(0)
+            if arg == "table" and value not in ["main", "254"]:
+                not_implemented("table", "macOS has one routing table")
+            if arg != "table" and value not in ["static", "boot"]:
+                not_implemented(arg, "macOS routes have no protocol")
+        elif arg in ["metric", "preference", "priority"] and argv:
+            not_implemented(arg, "macOS routes have no metric")
+        elif arg == "onlink":
+            not_implemented(arg, "macOS checks the gateway")
+        else:
+            return None
+    route["inet6"] = (
+        af == 6 or ":" in route["prefix"] or ":" in route.get("via", "")
+    )
+    return route
+
+
+def route_gateway(route):
+    """Gateway of a route for route(8), a link-local one scoped to dev."""
+    gateway = route["via"]
+    if route.get("dev") and gateway.lower().startswith("fe80:"):
+        gateway += "%" + route["dev"]
+    return gateway
+
+
+def route_add_cmd(route, verb="add"):
+    cmd = [SUDO, ROUTE, "-n", verb]
+    if route["inet6"]:
         cmd.append("-inet6")
-
-    cmd.append(prefix)
-
-    if argv[1] in ["via", "nexthop", "gw"]:
-        cmd.append(argv[2])
-    elif argv[1] in ["dev"]:
-        cmd.extend(["-interface", argv[2]])
+    cmd.append(route["prefix"])
+    flag = ROUTE_TYPES[route["type"]]
+    if flag:
+        # macOS discard and reject routes go to the loopback
+        cmd += ["::1" if route["inet6"] else "127.0.0.1", flag]
+    elif "via" in route:
+        cmd.append(route_gateway(route))
+        if route.get("dev"):
+            cmd += ["-ifp", route["dev"]]
+    elif route.get("dev"):
+        cmd += ["-interface", route["dev"]]
     else:
-        do_help_route()
+        perror("Error: either via or dev is expected.")
+        exit(255)
+    if route.get("src"):
+        cmd += ["-ifa", route["src"]]
+    if route.get("mtu"):
+        if route.get("mtu_lock"):
+            cmd.append("-lock")
+        cmd += ["-mtu", route["mtu"]]
+    return cmd
 
-    if is_blackhole:
-        cmd.append("-blackhole")
 
-    return execute_cmd(cmd)
+def route_del_cmd(route):
+    cmd = [SUDO, ROUTE, "-n", "delete"]
+    if route["inet6"]:
+        cmd.append("-inet6")
+    cmd.append(route["prefix"])
+    if route["type"] == "unicast" and "via" in route:
+        cmd.append(route_gateway(route))
+    return cmd
+
+
+def do_route_add(argv, af):
+    route = parse_route(argv, af)
+    if route is None:
+        return False
+    return execute_cmd(route_add_cmd(route))
 
 
 def do_route_del(argv, af):
-    blackhole_args = []
-    if argv[0] == "blackhole":
-        argv.pop(0)
-        if len(argv) != 1:
-            return False
-        if ":" in argv[0] or af == 6:
-            blackhole_args = ["::1", "-blackhole"]
-        else:
-            blackhole_args = ["127.0.0.1", "-blackhole"]
+    route = parse_route(argv, af)
+    if route is None:
+        return False
+    return execute_cmd(route_del_cmd(route))
 
-    prefix = argv[0]
-    cmd = [SUDO, ROUTE, "delete"]
-    if ":" in prefix or af == 6:
-        cmd.append("-inet6")
 
-    cmd.append(prefix)
-    cmd.extend(blackhole_args)
-    return execute_cmd(cmd)
+def do_route_replace(argv, af):
+    # create the route if it does not exist, like iproute2
+    route = parse_route(argv, af)
+    if route is None:
+        return False
+    execute_cmd(route_del_cmd(route), check=False)
+    return execute_cmd(route_add_cmd(route))
+
+
+def do_route_change(argv, af):
+    route = parse_route(argv, af)
+    if route is None:
+        return False
+    if route["type"] != "unicast":
+        execute_cmd(route_del_cmd(route))
+        return execute_cmd(route_add_cmd(route))
+    return execute_cmd(route_add_cmd(route, "change"))
 
 
 def do_route_flush(argv, af):

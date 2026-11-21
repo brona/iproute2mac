@@ -139,6 +139,51 @@ $ip_cmd ro sh | grep -E "^blackhole $ip_dest"
 $ip_cmd route delete blackhole $ip_dest
 ! netstat -anr | grep "$ip_dest"
 
+## unreachable and prohibit (macOS reject routes)
+
+$ip_cmd route add unreachable $ip_dest
+netstat -anr | grep "$ip_dest" | grep "R"
+$ip_cmd route show $ip_dest | grep -x "unreachable $ip_dest"
+$ip_cmd route del unreachable $ip_dest
+! netstat -anr | grep "$ip_dest"
+
+$ip_cmd route add prohibit $ip_dest
+netstat -anr | grep "$ip_dest" | grep "R"
+$ip_cmd route del $ip_dest
+! netstat -anr | grep "$ip_dest"
+
+## replace creates a missing route, change modifies it
+
+test -z "$($ip_cmd route replace $ip_dest via $ip_via 2>&1)"
+netstat -anr | grep "$ip_dest" | grep "$ip_via"
+$ip_cmd route replace $ip_dest via $ip_prefix.97
+netstat -anr | grep "$ip_dest" | grep "$ip_prefix.97"
+$ip_cmd route change $ip_dest via $ip_via
+netstat -anr | grep "$ip_dest" | grep "$ip_via"
+$ip_cmd route del $ip_dest
+! netstat -anr | grep "$ip_dest"
+
+## attributes
+
+$ip_cmd route add $ip_dest via $ip_via mtu 1300 table main proto static
+route -n get $ip_prefix.99 | grep -E "^ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +1300 "
+$ip_cmd route del $ip_dest
+
+$ip_cmd route add $ip_dest dev lo0 src 127.0.0.1
+netstat -anr | grep "$ip_dest" | grep "lo0"
+$ip_cmd route del $ip_dest
+
+# no metric, no other table, nothing done
+set +e
+$ip_cmd route add $ip_dest via $ip_via metric 10 2>/tmp/iproute2mac-test.err
+rc=$?
+set -e
+test $rc -eq 1
+grep 'not implemented' /tmp/iproute2mac-test.err
+rm -f /tmp/iproute2mac-test.err
+! $ip_cmd route add $ip_dest via $ip_via table 100
+! netstat -anr | grep "$ip_dest"
+
 # address
 
 $ip_cmd addr help 2>&1 >/dev/null | grep "Usage: ip addr"
