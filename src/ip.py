@@ -324,6 +324,7 @@ def do_help_route():
 def do_help_addr():
     perror("Usage: ip addr show [ dev STRING ] [ to PREFIX ] [up]")
     perror("       ip addr { add | del } PREFIX dev STRING")
+    perror("       ip addr flush [ dev ] STRING [ scope SCOPE ] [ to PREFIX ]")
     exit(255)
 
 
@@ -631,8 +632,72 @@ def do_addr(argv, af, json_print, pretty_json, color, brief, oneline):
     elif strict_startswith("delete", argv[0]) and len(argv) >= 3:
         argv.pop(0)
         return do_addr_del(argv, af)
+    elif strict_startswith("flush", argv[0]):
+        argv.pop(0)
+        return do_addr_flush(argv, af)
     else:
         return False
+    return True
+
+
+# Scopes of "ip addr flush ... scope SCOPE", numeric values of iproute2
+ADDR_SCOPES = {
+    "global": 0,
+    "site": 200,
+    "link": 253,
+    "host": 254,
+    "nowhere": 255,
+}
+
+
+def do_addr_flush(argv, af):
+    # ip addr flush [ dev ] IFNAME [ scope SCOPE ] [ to PREFIX ]
+    dev = None
+    scope = None
+    prefix = None
+    try:
+        while argv:
+            arg = argv.pop(0)
+            if arg == "dev":
+                dev = argv.pop(0)
+            elif arg == "scope":
+                scope = argv.pop(0)
+                if scope.isdigit():
+                    names = {v: k for k, v in ADDR_SCOPES.items()}
+                    scope = names[int(scope)]
+                elif scope not in ADDR_SCOPES:
+                    return False
+            elif arg == "to":
+                prefix = ipaddress.ip_network(argv.pop(0), strict=False)
+            elif dev is None:
+                dev = arg
+            else:
+                return False
+    except (IndexError, KeyError, ValueError):
+        return False
+    if dev is None and scope is None and prefix is None:
+        perror("Flush requires arguments.")
+        exit(1)
+
+    cmd = [IFCONFIG, "-v", dev if dev else "-a"]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        perror('Device "%s" does not exist.' % dev)
+        exit(1)
+
+    for link in parse_ifconfig(res.stdout, af, True):
+        for a in link.get("addr_info", []):
+            if scope is not None and a["scope"] != scope:
+                continue
+            local = ipaddress.ip_address(a["local"])
+            if prefix is not None and (
+                local.version != prefix.version or local not in prefix
+            ):
+                continue
+            inet = "inet6" if local.version == 6 else "inet"
+            execute_cmd(
+                [SUDO, IFCONFIG, link["ifname"], inet, a["local"], "delete"]
+            )
     return True
 
 

@@ -199,6 +199,31 @@ $ip_cmd a s
 
 ! $ip_cmd addr asdf
 
+## flush
+
+$ip_cmd addr add 192.0.2.201/32 dev lo0
+$ip_cmd addr add 192.0.2.202/32 dev lo0
+$ip_cmd -6 addr add 2001:db8:ffff::1/128 dev lo0
+$ip_cmd addr show dev lo0 | grep 'inet 192.0.2.201/32'
+
+$ip_cmd -4 addr flush lo0 to 192.0.2.201/32
+! $ip_cmd addr show dev lo0 | grep '192.0.2.201'
+$ip_cmd addr show dev lo0 | grep 'inet 192.0.2.202/32'
+
+$ip_cmd addr flush dev lo0 scope global to 192.0.2.0/24
+! $ip_cmd addr show dev lo0 | grep '192.0.2.202'
+
+$ip_cmd -6 addr flush dev lo0 scope link to 2001:db8:ffff::/64
+$ip_cmd addr show dev lo0 | grep 'inet6 2001:db8:ffff::1/128'
+
+$ip_cmd -6 addr flush dev lo0 scope global to 2001:db8:ffff::/64
+! $ip_cmd addr show dev lo0 | grep '2001:db8:ffff::1'
+$ip_cmd addr show dev lo0 | grep 'inet 127.0.0.1/8'
+
+! $ip_cmd addr flush
+
+! $ip_cmd addr flush dev iproute2mac0
+
 ## brief format tests
 
 # Test basic -br addr show
