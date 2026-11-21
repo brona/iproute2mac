@@ -126,6 +126,63 @@ def parse_ifconfig(res, af, address):
     return sorted(links, key=itemgetter("ifindex"))
 
 
+# "ip -s": show the statistics of the links
+SHOW_STATS = 0
+
+
+def link_stats():
+    """{macOS name: stats64} of the links, with the counters macOS has."""
+    res = subprocess.run([NETSTAT, "-ibdn"], capture_output=True, text=True)
+    stats = {}
+    # Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll Drop
+    for row in res.stdout.splitlines()[1:]:
+        cols = row.split()
+        if len(cols) < 11 or not cols[2].startswith("<Link#"):
+            continue
+        try:
+            ipkts, ierrs, ibytes, opkts, oerrs, obytes, coll, drop = [
+                int(c) for c in cols[-8:]
+            ]
+        except ValueError:
+            continue
+        # a link that is down has a "*" after its name
+        stats[cols[0].rstrip("*")] = {
+            "rx": {"bytes": ibytes, "packets": ipkts, "errors": ierrs},
+            "tx": {
+                "bytes": obytes,
+                "packets": opkts,
+                "errors": oerrs,
+                "dropped": drop,
+                "collisions": coll,
+            },
+        }
+    return stats
+
+
+def link_stats_lines(stats):
+    """The statistics of a link as iproute2 prints them."""
+    rx = ["bytes", "packets", "errors"]
+    tx = ["bytes", "packets", "errors", "dropped", "collisions"]
+    rows = [("RX", rx, stats["rx"]), ("TX", tx, stats["tx"])]
+    # the minimal widths of the columns of iproute2
+    widths = [10, 7, 6, 7, 7]
+    for _, keys, counters in rows:
+        for i, key in enumerate(keys):
+            widths[i] = max(widths[i], len(str(counters[key])))
+    lines = []
+    for tag, keys, counters in rows:
+        headers = ["collsns" if k == "collisions" else k for k in keys]
+        # "RX: " uses 4 columns of the first counter
+        cols = [widths[0] - 4] + widths[1:]
+        lines.append(
+            "    %s: " % tag
+            + " ".join(h.rjust(w) for h, w in zip(headers, cols))
+        )
+        values = ["%*d " % (w, counters[k]) for k, w in zip(keys, widths)]
+        lines.append("    " + "".join(values))
+    return lines
+
+
 def link_addr_show(
     argv, af, json_print, pretty_json, color, address, brief, oneline
 ):
@@ -178,6 +235,13 @@ def link_addr_show(
         if aliases.get(l["ifname"], l["ifname"]) != l["ifname"]:
             l["altnames"] = [l["ifname"]]
             l["ifname"] = aliases[l["ifname"]]
+
+    if SHOW_STATS:
+        stats = link_stats()
+        for l in links:
+            ifname = l["altnames"][0] if "altnames" in l else l["ifname"]
+            if ifname in stats:
+                l["stats64"] = stats[ifname]
 
     # Keep the addresses that are in the requested prefix
     if prefix is not None:
@@ -264,6 +328,8 @@ def link_addr_show(
                 )
                 for altname in l.get("altnames", []):
                     lines.append("    altname " + altname)
+                if "stats64" in l:
+                    lines += link_stats_lines(l["stats64"])
                 print(output_separator.join(lines))
 
             for a in l.get("addr_info", []):
@@ -1522,6 +1588,7 @@ cmds = [
 
 @help_msg(do_help)
 def main(argv):
+    global SHOW_STATS
     af = -1  # default / both
     json_print = False
     pretty_json = False
@@ -1551,6 +1618,9 @@ def main(argv):
             exit(255)
         elif strict_startswith("-brief", argv[0]):
             brief = True
+            argv.pop(0)
+        elif strict_startswith("-statistics", argv[0]) or argv[0] == "-stats":
+            SHOW_STATS += 1
             argv.pop(0)
         elif strict_startswith("-oneline", argv[0]):
             oneline = True

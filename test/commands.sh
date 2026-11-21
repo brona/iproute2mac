@@ -399,6 +399,16 @@ $ip_cmd link del $kdevA
 ! $ip_cmd link set dev lo0 name ipr2mlo
 ! $ip_cmd link del ipr2mnone0
 
+## statistics
+
+$ip_cmd -s link show dev lo0 | grep -E '^    RX:  +bytes +packets +errors$'
+$ip_cmd -s link show dev lo0 | grep -E '^    TX:  +bytes +packets +errors +dropped +collsns$'
+$ip_cmd -s link show dev lo0 | grep -A1 'RX:' | tail -1 | grep -E '^ +[0-9]+ +[0-9]+ +[0-9]+ $'
+$ip_cmd -stats link show dev lo0 | grep 'RX:'
+$ip_cmd -s addr show dev lo0 | grep 'TX:'
+$ip_cmd -j -s link show dev lo0 | grep -E '"stats64":\{"rx":\{"bytes":[0-9]+,"packets":[0-9]+,"errors":[0-9]+\},"tx":\{"bytes":[0-9]+,'
+! $ip_cmd link show dev lo0 | grep 'RX:'
+
 ## link brief format tests
 
 # Test basic -br link show
