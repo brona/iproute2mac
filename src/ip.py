@@ -13,6 +13,7 @@
 import ipaddress
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -941,4 +942,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    # Match iproute2: exit silently on SIGPIPE (e.g. `ip route | head`)
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     main(sys.argv[1:])
