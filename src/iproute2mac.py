@@ -28,6 +28,7 @@ ROUTE = "/sbin/route"
 NETSTAT = "/usr/sbin/netstat"
 NDP = "/usr/sbin/ndp"
 ARP = "/usr/sbin/arp"
+SYSCTL = "/usr/sbin/sysctl"
 NETWORKSETUP = "/usr/sbin/networksetup"
 
 HELP_ADDENDUM = """iproute2mac
@@ -37,32 +38,134 @@ Provided functionality is limited and command output is not fully compatible wit
 For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup directly."""  # noqa: E501
 
 
+VERBOSE = sys.stdout.isatty() or bool(os.environ.get("IPROUTE2MAC_VERBOSE"))
+
+
 # Helper functions
 def perror(*args):
     sys.stderr.write(*args)
     sys.stderr.write("\n")
 
 
-def execute_cmd(cmd):
+def execute_cmd(cmd, check=True):
+    """Run a command changing the system.
+
+    On failure, print its error and exit with status 2 like iproute2 when the
+    kernel refuses a change, unless check is False: then return False, the
+    failure being expected.
+    """
     if not isinstance(cmd, list):
         raise TypeError(
             "execute_cmd requires a list of argument strings, got %s"
             % type(cmd).__name__
         )
-    print("Executing: %s" % " ".join(cmd))
+    if cmd and cmd[0] == SUDO and os.geteuid() == 0:
+        cmd = cmd[1:]
+    if VERBOSE:
+        print("Executing: %s" % " ".join(cmd))
     res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode == 0:
-        if res.stderr:
-            perror(res.stderr.strip())
-        if res.stdout:
-            print(res.stdout, end="")
+    # route(8) exits with 0 when the routing socket refuses the change
+    tool = cmd[1] if cmd[0] == SUDO and len(cmd) > 1 else cmd[0]
+    refused = tool == ROUTE and "writing to routing socket" in res.stderr
+    if res.returncode == 0 and not refused:
+        if VERBOSE:
+            if res.stderr:
+                perror(res.stderr.strip())
+            if res.stdout:
+                print(res.stdout, end="")
         return True
-    else:
+    if check or VERBOSE:
         if res.stderr:
             perror(res.stderr.strip())
         if res.stdout:
             perror(res.stdout.strip())
-        return False
+    if check:
+        exit(2)
+    return False
+
+
+def execute_cmd_output(cmd):
+    """Run a command changing the system, return its output.
+
+    On failure, print its error and exit with status 2 like execute_cmd().
+    """
+    if cmd and cmd[0] == SUDO and os.geteuid() == 0:
+        cmd = cmd[1:]
+    if VERBOSE:
+        print("Executing: %s" % " ".join(cmd))
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        perror((res.stderr + res.stdout).strip())
+        exit(2)
+    return res.stdout
+
+
+def not_implemented(what, why):
+    perror('iproute2mac: "%s" is not implemented, %s.' % (what, why))
+    exit(1)
+
+
+RUNDIR = os.environ.get("IPROUTE2MAC_RUNDIR", "/var/run/iproute2mac")
+NAMES_FILE = os.path.join(RUNDIR, "names.json")
+
+
+def names_load():
+    """{name: {"ifname": macOS name, "kind": ..., ...}} of existing links."""
+    try:
+        with open(NAMES_FILE) as f:
+            names = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    res = subprocess.run([IFCONFIG, "-l"], capture_output=True, text=True)
+    existing = set(res.stdout.split())
+    return {k: v for k, v in names.items() if v.get("ifname") in existing}
+
+
+def save_state(path, state):
+    """Save the state of iproute2mac in RUNDIR, as root."""
+    data = json.dumps(state, indent=2, sort_keys=True) + "\n"
+    if os.geteuid() == 0:
+        os.makedirs(RUNDIR, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            f.write(data)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+        return
+    subprocess.run([SUDO, "/bin/mkdir", "-p", RUNDIR], check=True)
+    subprocess.run(
+        [SUDO, "/usr/bin/tee", path],
+        input=data,
+        text=True,
+        stdout=subprocess.DEVNULL,
+        check=True,
+    )
+
+
+def names_save(names):
+    save_state(NAMES_FILE, names)
+
+
+def kernel_ifname(name, names=None):
+    """macOS name of an interface given by its name or its macOS name."""
+    if names is None:
+        names = names_load()
+    entry = names.get(name)
+    return entry["ifname"] if entry else name
+
+
+def ifname_aliases(names=None):
+    """{macOS name: name} of the interfaces "ip link add" created."""
+    if names is None:
+        names = names_load()
+    return {v["ifname"]: k for k, v in names.items()}
+
+
+def hidden_ifnames(names=None):
+    """macOS names of the interfaces that "ip link add" uses internally."""
+    if names is None:
+        names = names_load()
+    return {v["hidden"] for v in names.values() if v.get("hidden")}
 
 
 def json_dump(data, pretty):

@@ -1,7 +1,7 @@
 iproute2mac
 ===========
 
-*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip`, `bridge` and `ss` commands*
+*CLI wrapper for basic network utilities on macOS, inspired by iproute2 on Linux systems – `ip`, `bridge`, `ss` and `tc` commands*
 
 Provided functionality is limited and command output is not fully compatible with [iproute2].\
 Goal of this project is to make basic network configuration/debug tasks on macOS easy for admins who already use Linux systems.\
@@ -33,6 +33,7 @@ git clone https://github.com/brona/iproute2mac.git
 ln -s iproute2mac/src/ip.py /usr/local/bin/ip
 ln -s iproute2mac/src/bridge.py /usr/local/bin/bridge
 ln -s iproute2mac/src/ss.py /usr/local/bin/ss
+ln -s iproute2mac/src/tc.py /usr/local/bin/tc
 ```
 
 C) Using [MacPorts](https://www.macports.org/) (Maintained by [@i0ntempest](https://github.com/i0ntempest)):
@@ -43,6 +44,15 @@ D) Using [NixOS](https://nixos.org/) (Maintained by [@jiegec](https://github.com
 
 See https://search.nixos.org/packages?show=iproute2mac&type=packages&query=iproute2mac and [package.nix](https://github.com/NixOS/nixpkgs/blob/master/pkgs/by-name/ip/iproute2mac/package.nix)
 
+
+## Scripting
+
+When its output is not a terminal, `ip` behaves like iproute2 for scripts:
+
+* It prints nothing when a change succeeds, set `IPROUTE2MAC_VERBOSE=1` to see the macOS commands it runs.
+* It exits with status 2 when macOS refuses a change, 1 when a device does not exist and 255 on a usage error.
+* It runs the macOS commands without `sudo` when it is run as root.
+* `ip link` shows the `state` of an interface and the `LOWER_UP` or `NO-CARRIER` flag like iproute2.
 
 ## Supported commands / Example usage
 
@@ -57,6 +67,8 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * `bridge help`
   * `bridge link help`
   * `ss help`
+  * `tc help`
+  * `tc qdisc help`
 * Link module (Interfaces)
   * List local interfaces `ip link`
   * List interfaces in brief format `ip -br link`
@@ -67,23 +79,34 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Set **random MAC** address `ip link set en0 address random`
   * Set **factory default MAC** address `ip link set en0 address factory`
   * Set MTU `ip link set dev en0 mtu 9000`
+  * Show the statistics of the links `ip -s link`: the packets, bytes and errors received, and the packets, bytes, errors, drops and collisions sent, the counters that macOS has
+  * Add a dummy interface `ip link add dummy0 type dummy`, a pair of virtual Ethernet interfaces `ip link add veth0 type veth peer name veth1`, a VLAN `ip link add link en0 name en0.100 type vlan id 100`, a bridge `ip link add br0 type bridge`, an 802.3ad bond `ip link add bond0 type bond`
+  * Add an interface to a bridge or a bond `ip link set dev veth1 master br0`, remove it `ip link set dev veth1 nomaster`
+  * Delete an interface `ip link del dummy0`
+  * macOS names these interfaces `feth`N, `vlan`N, `bridge`N and `bond`N, and cannot rename them: iproute2mac keeps the name given in `/var/run/iproute2mac/names.json`, accepts it everywhere and shows it, with the macOS name as `altname`. Like on Linux, a name given again gets its former interface, and a new name an interface that no other name had (macOS would reuse the lowest free one), so that a routing daemon does not take an interface for another. A dummy interface is a `feth` with a hidden peer, so that it has a carrier.
 * Neighbour module (ARP/NDP)
   * Show all neighbours `ip neigh`
   * Show all IPv4 (ARP) neighbours `ip -4 neigh`
   * Show all IPv6 (NDP) neighbours `ip -6 neigh`
   * Show all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh show dev en0`
   * Show neighbours filtered by prefix `ip -4 neigh show 192.0.2.0/24`
-  * IPv6 (NDP) neighbours cannot be currently shown for a specific interface
-  * Flush all neighbours (IPv4 + IPv6) for a specific interface `ip neigh flush dev en0`
-  * Flush all IPv4 (ARP) neighbours for a specific interface `ip -4 neigh flush dev en0`
-  * IPv6 (NDP) neighbours are being flushed for all interfaces
+  * Add a static neighbour `ip neigh add 192.0.2.2 lladdr 02:00:00:00:00:02 dev en0`, or an expiring one `ip neigh add 2001:db8::2 lladdr 02:00:00:00:00:02 dev en0 nud reachable`
+  * Replace or change a neighbour `ip neigh replace 192.0.2.2 lladdr 02:00:00:00:00:03 dev en0`
+  * Delete a neighbour `ip neigh del 192.0.2.2 dev en0`
+  * Flush the neighbours of an interface, except the permanent ones like iproute2 `ip neigh flush dev en0`, or of a prefix `ip -6 neigh flush 2001:db8::/64 dev en0`
+  * macOS puts an IPv6 neighbour on the interface of the route to its address, and has no `proxy`, `router` or `extern_learn` neighbour
 * Address module
   * List all addresses `ip addr`
   * List all addresses in brief format `ip -br addr`
   * List IPv4 addresses `ip -4 addr`
   * List IPv6 addresses `ip -6 addr`
+  * List the addresses of an interface that are in a prefix `ip addr show dev en0 to 192.0.2.0/24`
   * Add address to interface `ip addr add 10.0.0.5/24 dev en0`
+  * Add an IPv6 address without duplicate address detection `ip -6 addr add 2001:db8::5/64 dev en0 nodad`, with lifetimes `ip -6 addr add 2001:db8::5/64 dev en0 valid_lft 3600 preferred_lft 1800`
+  * Change or replace an address `ip -6 addr change 2001:db8::5/64 dev en0 preferred_lft 0`
+  * macOS has no `noprefixroute`, labels, nor lifetimes of IPv4 addresses, and sets the scope from the address
   * Remove address from interface `ip addr del 10.0.0.5 dev en0`
+  * Remove the addresses of an interface `ip addr flush dev en0`, the global IPv6 ones `ip -6 addr flush dev en0 scope global`
 * Route module
   * List IPv4 addresses `ip route`
   * List IPv6 addresses `ip -6 route`
@@ -94,7 +117,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Add static route `ip route add 192.168.0.0/16 nexthop 10.0.0.1`
   * Add default route `ip route add default nexthop 10.0.0.1`
   * Replace static route `ip route replace 192.0.2.0/24 dev utun1`
+  * Change the gateway of a static route `ip route change 192.168.0.0/16 via 10.0.0.2`
+  * Add a route with a source address (an address of the outgoing interface on macOS) and an MTU `ip route add 192.0.2.0/24 via 10.0.0.1 src 10.0.0.5 mtu 1400`
+  * Add a route rejecting the packets `ip route add unreachable 192.0.2.0/24`, or discarding them `ip route add blackhole 192.0.2.0/24`
   * Remove static route `ip route del 192.168.0.0/16`
+  * macOS routes have no metric and macOS has one routing table: `metric`, `table` other than `main` and `proto` other than `static` are not implemented
 * Bridge module
   * List bridge interfaces `bridge link`
   * List one bridged interface `bridge link show dev en2`
@@ -107,6 +134,11 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   * Show IPv6 sockets `ss -6`
   * Show socket statistics `ss -s`
   * Show all sockets (including listening) `ss -a`
+* Traffic control (tc), with the dummynet of macOS
+  * Delay and drop the packets sent on an interface `tc qdisc add dev en0 root handle 1: netem delay 100ms loss 1%`
+  * Limit their rate `tc qdisc add dev en0 root tbf rate 1mbit burst 32kb latency 50ms`, or under a netem `tc qdisc add dev en0 parent 1: tbf rate 1mbit burst 32kb limit 64kb`
+  * Show the qdiscs `tc qdisc show dev en0`, change one `tc qdisc replace dev en0 root netem loss 100%`, delete them `tc qdisc del dev en0 root`
+  * An interface with qdiscs gets a dummynet pipe, and pf, enabled while an interface has qdiscs, sends it the packets with a rule in the anchor `com.apple/iproute2mac`. dummynet delays in milliseconds, and has no jitter, correlation, burst, classes nor filters
 * JSON output
   * List interfaces: `ip -j link show`
   * List addresses: `ip -j addr show`
