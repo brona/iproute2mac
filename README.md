@@ -125,6 +125,12 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
+
+</details>
+
+<details open>
+  <summary><b>v1.7.7</b></summary>
+
   - Exit silently on `SIGPIPE` (e.g. `ip route | head`) to match iproute2 (https://github.com/brona/iproute2mac/pull/83, thanks [@y8gao](https://github.com/y8gao))
   - Deduplicated `ifconfig` parsing and CLI option handling into shared `iproute2mac.py` helpers (`parse_ifconfig_links`, `parse_cli_options`)
   - Fixed `ip route replace` failing when the route does not yet exist, and corrupting `blackhole` routes due to `argv` mutation

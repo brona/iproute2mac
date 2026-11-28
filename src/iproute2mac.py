@@ -20,7 +20,7 @@ import types
 from operator import itemgetter
 
 # Version
-VERSION = "1.7.6"
+VERSION = "1.7.7"
 
 # Utilities
 SUDO = "/usr/bin/sudo"

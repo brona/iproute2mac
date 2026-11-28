@@ -47,9 +47,10 @@ https://github.com/Homebrew/homebrew-core/blob/master/Formula/i/iproute2mac.rb
 1) [Create a new release](https://github.com/brona/iproute2mac/releases/new) on Github with assigning a new version tag, e.g. `v1.5.0`.
 2) Download and re-upload the source and add it as an asset to the release, e.g. `
 iproute2mac-1.5.0.tar.gz`. This allows for download statistics to be captured on Github.
-3) Calculate sha256 of the release, e.g. `sha256sum iproute2mac-1.5.0.tar.gz`
-4) [Request Github access token](https://github.com/settings/tokens), requesting `public_repo` and `workflow` scopes.
-5) [Bump the Homebrew formula](https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request#submit-a-new-version-of-an-existing-formula), e.g. Run `HOMEBREW_GITHUB_API_TOKEN=<token> brew bump-formula-pr --url="https://github.com/brona/iproute2mac/releases/download/v1.5.0/iproute2mac-1.5.0.tar.gz" --sha256 "f842776ada1a51bb4a5c34e1e68471c85d7bf9f43511bdfef008074f82876a49" iproute2mac`
+3) **STOP HERE** under normal circumstances, Homebrew's [Autobump](https://docs.brew.sh/Autobump) will release new version on its own.
+4) Calculate sha256 of the release, e.g. `sha256sum iproute2mac-1.5.0.tar.gz`
+5) [Request Github access token](https://github.com/settings/tokens), requesting `public_repo` and `workflow` scopes.
+6) [Bump the Homebrew formula](https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request#submit-a-new-version-of-an-existing-formula), e.g. Run `HOMEBREW_GITHUB_API_TOKEN=<token> brew bump-formula-pr --url="https://github.com/brona/iproute2mac/releases/download/v1.5.0/iproute2mac-1.5.0.tar.gz" --sha256 "f842776ada1a51bb4a5c34e1e68471c85d7bf9f43511bdfef008074f82876a49" iproute2mac`
 
 If you are doing bigger changes to the Homebrew formula, you need to fork and branch [homebrew-core](https://github.com/Homebrew/homebrew-core) manually.
 
