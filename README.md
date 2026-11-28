@@ -125,7 +125,7 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
 <details open>
   <summary><b>HEAD</b></summary>
 
-  - No changes yet
+  - Exit silently on `SIGPIPE` (e.g. `ip route | head`) to match iproute2 (https://github.com/brona/iproute2mac/pull/83, thanks [@y8gao](https://github.com/y8gao))
 
 </details>
 
