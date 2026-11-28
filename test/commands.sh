@@ -88,6 +88,14 @@ $ip_cmd ro sho
 
 $ip_cmd r s
 
+# A closed downstream pipe (e.g. `ip route | head`) must not print a
+# BrokenPipeError traceback. Route output must exceed the pipe buffer
+# for the writer to actually receive SIGPIPE.
+sigpipe_stderr=$(mktemp)
+$ip_cmd route 2>"$sigpipe_stderr" | head -n 1 >/dev/null
+! test -s "$sigpipe_stderr"
+rm -f "$sigpipe_stderr"
+
 ! $ip_cmd r asdf
 
 ## get
