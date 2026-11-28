@@ -54,11 +54,57 @@ def parse_netstat(
     lines = res.strip().split("\n")
 
     for line in lines:
-        if not line or line.startswith("Active") or line.startswith("Proto"):
+        if not line or line.startswith(("Active", "Proto", "Address")):
             continue
 
         parts = line.split()
         if len(parts) < 5:
+            continue
+
+        is_unix = len(parts) >= 8 and parts[1] in (
+            "stream",
+            "dgram",
+            "seqpacket",
+        )
+        if is_unix:
+            if only_tcp or only_udp or only_raw or ipv4_only or ipv6_only:
+                continue
+            if not only_unix and not show_all:
+                continue
+
+            unix_types = {
+                "stream": "u_str",
+                "dgram": "u_dgr",
+                "seqpacket": "u_seq",
+            }
+            proto = unix_types[parts[1]]
+            conn = parts[5]
+            path = parts[8] if len(parts) >= 9 else "*"
+            state = "ESTAB" if conn != "0" else "UNCONN"
+            if show_all:
+                pass
+            elif listening_only:
+                if not (conn == "0" and path != "*"):
+                    continue
+            else:
+                if conn == "0" and path != "*":
+                    continue
+
+            sockets.append(
+                {
+                    "netid": proto,
+                    "state": state,
+                    "recv_q": parts[2],
+                    "send_q": parts[3],
+                    "local_addr": path,
+                    "local_port": "*",
+                    "peer_addr": conn if conn != "0" else "*",
+                    "peer_port": "*",
+                }
+            )
+            continue
+
+        if only_unix:
             continue
 
         proto = parts[0].lower()
@@ -68,29 +114,14 @@ def parse_netstat(
             continue
         if only_udp and not proto.startswith("udp"):
             continue
-        if only_unix and not proto.startswith("unix"):
-            continue
         if only_raw and not "raw" in proto:
             continue
 
         # Filter by IP version
-        if ipv4_only and not "4" in proto:
+        if ipv4_only and "4" not in proto:
             continue
-        if ipv6_only and not "6" in proto:
+        if ipv6_only and "6" not in proto:
             continue
-
-        # Filter by state:
-        state = parts[-1] if len(parts) >= 6 else "UNKNOWN"
-        if show_all:
-            pass  # show everything for -a
-        elif listening_only:
-            # show only LISTEN sockets for -l
-            if state != "LISTEN":
-                continue
-        else:
-            # show non-listening sockets only by default (no flags)
-            if state == "LISTEN":
-                continue
 
         local = parts[3]
         peer = parts[4]
@@ -102,6 +133,26 @@ def parse_netstat(
         peer_addr, peer_port = (
             peer.rsplit(".", 1) if "." in peer else (peer, "*")
         )
+
+        # Filter by state:
+        if len(parts) >= 6:
+            state = parts[-1]
+        elif proto.startswith("udp"):
+            state = "UNCONN"
+        else:
+            state = "UNKNOWN"
+
+        if show_all:
+            pass  # show everything for -a
+        elif listening_only:
+            # show LISTEN sockets (and bound UDP sockets) for -l
+            is_bound_udp = proto.startswith("udp") and local_port != "*"
+            if state != "LISTEN" and not is_bound_udp:
+                continue
+        else:
+            # show non-listening sockets only by default (no flags)
+            if state == "LISTEN":
+                continue
 
         # Format state to match ss conventions
         if state == "ESTABLISHED":
@@ -148,7 +199,11 @@ def format_socket_line(socket, color, numeric=False):
     # Color the output using master branch color scheme
     state_colored = colorize(
         color,
-        COLOR_OPERSTATE_UP if state == "ESTAB" else COLOR_OPERSTATE_DOWN,
+        (
+            COLOR_OPERSTATE_UP
+            if state in ("ESTAB", "LISTEN")
+            else COLOR_OPERSTATE_DOWN
+        ),
         state,
     )
     local_colored = colorize_ifname(color, local)
@@ -317,6 +372,10 @@ def main(argv):
         )
         exit(1)
 
+    if args.resolve:
+        perror("iproute2mac: 'ss -r/--resolve' is not implemented")
+        exit(255)
+
     # Get color scheme
     color_scheme = get_color_scheme(args.color, args.json)
 
@@ -373,4 +432,4 @@ def main(argv):
 if __name__ == "__main__":
     # Match iproute2: exit silently on SIGPIPE (e.g. `ip route | head`)
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    main(sys.argv[1:])
+    sys.exit(0 if main(sys.argv[1:]) else 1)

@@ -10,7 +10,6 @@
   Copyright (c) 2015 Bronislav Robenek <brona@robenek.me>
 """
 
-import re
 import signal
 import subprocess
 import sys
@@ -20,84 +19,7 @@ from iproute2mac import *
 
 # Decode ifconfig output
 def parse_ifconfig(res):
-    links = []
-    count = 1
-
-    for r in res.split("\n"):
-        if re.match(r"^\w+:", r):
-            if count > 1:
-                links.append(link)
-            (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r
-            )[0]
-            flags = flags.split(",")
-            link = {
-                "ifindex": int(ifindex),
-                "ifname": ifname,
-                "flags": flags,
-                "mtu": int(mtu),
-                "operstate": "UNKNOWN",
-                "link_type": "unknown",
-            }
-            if "LOOPBACK" in flags:
-                link["link_type"] = "loopback"
-                link["address"] = "00:00:00:00:00:00"
-                link["broadcast"] = "00:00:00:00:00:00"
-            elif "POINTOPOINT" in flags:
-                link["link_type"] = "none"
-            count = count + 1
-        else:
-            if re.match(r"^\s+ether ", r):
-                link["link_type"] = "ether"
-                link["address"] = re.findall(
-                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r
-                )[0]
-                link["broadcast"] = "ff:ff:ff:ff:ff:ff"
-            elif match := re.search(r"^\s+status: (\w+)", r):
-                status = match.group(1)
-                link["operstate"] = "UP" if status == "active" else "DOWN"
-            elif re.match(r"^\s+maxage ", r):
-                (maxage, holdcnt, proto, maxaddr, timeout) = re.findall(
-                    r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)",
-                    r,
-                )[0]
-                link["bridge"] = {
-                    "maxage": int(maxage),
-                    "holdcnt": int(holdcnt),
-                    "proto": proto,
-                    "maxaddr": int(maxaddr),
-                    "timeout": int(timeout),
-                    "members": [],
-                }
-            elif re.match(r"^\s+member: ", r):
-                (ifname, flags) = re.findall(
-                    r"member: (\w+) flags=[\da-f]+<(.*)>", r
-                )[0]
-                flags = flags.split(",")
-                link["bridge"]["members"].append(
-                    {
-                        "ifname": ifname,
-                        "flags": flags,
-                    }
-                )
-            elif re.match(r"^\s+ifmaxaddr ", r):
-                (ifmaxaddr, ifindex, priority, cost) = re.findall(
-                    r"ifmaxaddr (\d+) port (\d+) priority (\d+) path cost (\d+)",
-                    r,
-                )[0]
-                link["bridge"]["members"][-1].update(
-                    {
-                        "ifmaxaddr": int(ifmaxaddr),
-                        "ifindex": int(ifindex),
-                        "priority": int(priority),
-                        "cost": int(cost),
-                    }
-                )
-
-    if count > 1:
-        links.append(link)
-
-    return links
+    return parse_ifconfig_links(res, parse_bridge=True)
 
 
 # Help
@@ -138,10 +60,9 @@ def do_link(argv, json_print, pretty_json, color, oneline):
 
 def do_link_show(argv, json_print, pretty_json, color, oneline):
     if len(argv) > 1:
-        if argv[0] != "dev":
+        if argv[0] != "dev" or len(argv) > 2:
             return False
-        else:
-            argv.pop(0)
+        argv.pop(0)
     if len(argv) > 0:
         dev = argv[0]
     else:
@@ -163,17 +84,21 @@ def do_link_show(argv, json_print, pretty_json, color, oneline):
         for slave in master["bridge"].get("members", []):
             if dev and slave["ifname"] != dev:
                 continue
-            link = [l for l in links if l["ifname"] == slave["ifname"]][0]
+            link = next(
+                (l for l in links if l["ifname"] == slave["ifname"]), None
+            )
+            if link is None:
+                continue
             bridges.append(
                 {
-                    "ifindex": slave["ifindex"],
+                    "ifindex": slave.get("ifindex", link["ifindex"]),
                     "ifname": slave["ifname"],
                     "flags": link["flags"],
                     "mtu": link["mtu"],
                     "master": master["ifname"],
                     "state": "forwarding",  # FIXME: how to ensure it is forwarding?
-                    "priority": slave["priority"],
-                    "cost": slave["cost"],
+                    "priority": slave.get("priority", 0),
+                    "cost": slave.get("cost", 0),
                 }
             )
 
@@ -202,11 +127,6 @@ def do_link_show(argv, json_print, pretty_json, color, oneline):
     return True
 
 
-def do_link_set(argv):
-    perror("iproute2mac: bridge link set is not implemented")
-    exit(255)
-
-
 # Match iproute2 commands
 # https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/bridge/bridge.c#n52
 cmds = [
@@ -217,55 +137,11 @@ cmds = [
 
 @help_msg(do_help)
 def main(argv):
-    json_print = False
-    pretty_json = False
-    color_mode = "never"
-    oneline = False
-
-    while argv and argv[0].startswith("-"):
-        if argv[0] == "-":
-            do_help()
-        elif argv[0] == "--":
-            argv.pop(0)
-            break
-        # Turn --opt into -opt
-        elif argv[0][1] == "-":
-            argv[0] = argv[0][1:]
-
-        # Process options
-        if strict_startswith("-color", argv[0].split("=")[0]):
-            # 'always' is default if -color is set without any value
-            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
-            if color_mode not in ["never", "always", "auto"]:
-                perror(
-                    'Option "{}" is unknown, try "ip -help".'.format(argv[0])
-                )
-                exit(255)
-            argv.pop(0)
-        elif strict_startswith("-json", argv[0]):
-            json_print = True
-            argv.pop(0)
-        elif strict_startswith("-pretty", argv[0]):
-            pretty_json = True
-            argv.pop(0)
-        elif strict_startswith("-oneline", argv[0]):
-            oneline = True
-            argv.pop(0)
-        elif strict_startswith("-Version", argv[0]):
-            print("iproute2mac, v" + VERSION)
-            exit(0)
-        elif strict_startswith("-help", argv[0]):
-            return False
-        else:
-            perror(
-                'Option "{}" is unknown, try "bridge help".'.format(argv[0])
-            )
-            exit(255)
-
-    if not argv:
+    opts = parse_cli_options(argv, "bridge", do_help)
+    if opts is None or not argv:
         return False
 
-    color_scheme = get_color_scheme(color_mode, json_print)
+    color_scheme = get_color_scheme(opts["color_mode"], opts["json_print"])
 
     for cmd, cmd_func in cmds:
         if strict_startswith(cmd, argv[0]):
@@ -273,7 +149,11 @@ def main(argv):
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
             return cmd_func(
-                argv, json_print, pretty_json, color_scheme, oneline
+                argv,
+                opts["json_print"],
+                opts["pretty_json"],
+                color_scheme,
+                opts["oneline"],
             )
 
     perror('Object "{}" is unknown, try "bridge help".'.format(argv[0]))
@@ -283,4 +163,4 @@ def main(argv):
 if __name__ == "__main__":
     # Match iproute2: exit silently on SIGPIPE (e.g. `ip route | head`)
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    main(sys.argv[1:])
+    sys.exit(0 if main(sys.argv[1:]) else 1)

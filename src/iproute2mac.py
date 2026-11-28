@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import types
+from operator import itemgetter
 
 # Version
 VERSION = "1.7.6"
@@ -39,8 +40,7 @@ For advanced usage use netstat, ifconfig, ndp, arp, route and networksetup direc
 
 # Helper functions
 def perror(*args):
-    sys.stderr.write(*args)
-    sys.stderr.write("\n")
+    print(*args, file=sys.stderr)
 
 
 def execute_cmd(cmd):
@@ -109,22 +109,14 @@ def any_startswith(words, test):
 
 # Handles passing return value, error messages and program exit on error
 def help_msg(help_func):
+    if not isinstance(help_func, types.FunctionType):
+        raise TypeError("Function expected for: %r" % (help_func,))
+
     def wrapper(func):
         def inner(*args, **kwargs):
             if not func(*args, **kwargs):
-                if help_func:
-                    if isinstance(help_func, types.FunctionType):
-                        if args and kwargs:
-                            help_func(*args, **kwargs)
-                        else:
-                            help_func()
-                        return False
-                    else:
-                        raise Exception("Function expected for: " + help_func)
-                else:
-                    raise Exception(
-                        "Function variant not defined: " + help_func
-                    )
+                help_func()
+                return False
             return True
 
         return inner
@@ -283,7 +275,7 @@ def _check_enable_color(color, json):
             .strip()
         )
         return colors >= 8
-    except (subprocess.CalledProcessError, ValueError):
+    except (subprocess.CalledProcessError, ValueError, OSError):
         # If tput fails or returns invalid output, fall back to TERM check
         term = os.getenv("TERM", "")
         if term == "dumb":
@@ -334,7 +326,7 @@ def colorize_ifname(scheme, ifname, ljust=0):
 
 
 def colorize_mac(scheme, mac, ljust=0):
-    return colorize(scheme, COLOR_MAC, mac, ljust=0)
+    return colorize(scheme, COLOR_MAC, mac, ljust)
 
 
 def colorize_inet(scheme, af, inet, ljust=0):
@@ -363,3 +355,206 @@ def colorize_op_state(scheme, state, ljust=0):
         return colorize(scheme, COLOR_OPERSTATE_DOWN, state, ljust)
     else:
         return str(state).ljust(ljust)
+
+
+def parse_ifconfig_links(
+    res, af=-1, address=False, parse_bridge=False, sort_by_ifindex=False
+):
+    """Parse `ifconfig -v -a` output into a list of link dictionaries."""
+    links = []
+    link = None
+
+    for line in res.split("\n"):
+        if re.match(r"^[\w.-]+:", line):
+            match = re.search(
+                r"^([\w.-]+): flags=[\da-f]+<(.*)>.*?\bmtu (\d+).*?\bindex (\d+)",
+                line,
+            )
+            if not match:
+                link = None
+                continue
+            if link is not None:
+                links.append(link)
+            ifname, flags_raw, mtu, ifindex = match.groups()
+            flags = flags_raw.split(",")
+            link = {
+                "ifindex": int(ifindex),
+                "ifname": ifname,
+                "flags": flags,
+                "mtu": int(mtu),
+                "operstate": "UNKNOWN",
+                "link_type": "unknown",
+            }
+            if "LOOPBACK" in flags:
+                link["link_type"] = "loopback"
+                link["address"] = "00:00:00:00:00:00"
+                link["broadcast"] = "00:00:00:00:00:00"
+            elif "POINTOPOINT" in flags:
+                link["link_type"] = "none"
+            continue
+
+        if link is None:
+            continue
+
+        if re.match(r"^\s+ether ", line):
+            match = re.search(r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", line)
+            if match:
+                link["link_type"] = "ether"
+                link["address"] = match.group(1)
+                link["broadcast"] = "ff:ff:ff:ff:ff:ff"
+        elif address and re.match(r"^\s+inet ", line) and af != 6:
+            match = re.search(
+                r"inet (\d+\.\d+\.\d+\.\d+)(?: --> (\d+\.\d+\.\d+\.\d+))? netmask (0x[\da-f]+)",
+                line,
+            )
+            if match:
+                local, peer, netmask = match.groups()
+                addr = {
+                    "family": "inet",
+                    "local": local,
+                    "prefixlen": netmask_to_length(netmask),
+                }
+                if peer:
+                    addr["address"] = peer
+                brd_match = re.search(r"broadcast (\d+\.\d+\.\d+\.\d+)", line)
+                if brd_match:
+                    addr["broadcast"] = brd_match.group(1)
+                link["addr_info"] = link.get("addr_info", []) + [addr]
+        elif address and re.match(r"^\s+inet6 ", line) and af != 4:
+            match = re.search(
+                r"inet6 ([\da-f:]*:[\da-f:]+)%*\w*(?: --> ([\da-f:]*:[\da-f:]+)%*\w*)? prefixlen (\d+)",
+                line,
+            )
+            if match:
+                local, peer, prefixlen = match.groups()
+                addr = {
+                    "family": "inet6",
+                    "local": local,
+                    "prefixlen": int(prefixlen),
+                }
+                if peer:
+                    addr["address"] = peer
+                link["addr_info"] = link.get("addr_info", []) + [addr]
+        elif match := re.search(r"^\s+status: (\w+)", line):
+            status = match.group(1)
+            link["operstate"] = "UP" if status == "active" else "DOWN"
+        elif parse_bridge and re.match(r"^\s+maxage ", line):
+            match = re.search(
+                r"maxage (\d+) holdcnt (\d+) proto (\w+) maxaddr (\d+) timeout (\d+)",
+                line,
+            )
+            if match:
+                maxage, holdcnt, proto, maxaddr, timeout = match.groups()
+                link["bridge"] = {
+                    "maxage": int(maxage),
+                    "holdcnt": int(holdcnt),
+                    "proto": proto,
+                    "maxaddr": int(maxaddr),
+                    "timeout": int(timeout),
+                    "members": [],
+                }
+        elif parse_bridge and re.match(r"^\s+member: ", line):
+            match = re.search(r"member: ([\w.-]+) flags=[\da-f]+<(.*)>", line)
+            if match and "bridge" in link:
+                ifname, flags_raw = match.groups()
+                link["bridge"]["members"].append(
+                    {
+                        "ifname": ifname,
+                        "flags": flags_raw.split(","),
+                    }
+                )
+        elif parse_bridge and re.match(r"^\s+ifmaxaddr ", line):
+            match = re.search(
+                r"ifmaxaddr (\d+) port (\d+) priority (\d+) path cost (\d+)",
+                line,
+            )
+            if match and link.get("bridge", {}).get("members"):
+                ifmaxaddr, ifindex, priority, cost = match.groups()
+                link["bridge"]["members"][-1].update(
+                    {
+                        "ifmaxaddr": int(ifmaxaddr),
+                        "ifindex": int(ifindex),
+                        "priority": int(priority),
+                        "cost": int(cost),
+                    }
+                )
+
+    if link is not None:
+        links.append(link)
+
+    if sort_by_ifindex:
+        return sorted(links, key=itemgetter("ifindex"))
+    return links
+
+
+def parse_cli_options(
+    argv,
+    prog,
+    help_func,
+    allow_af=False,
+    allow_brief=False,
+    allow_batch=False,
+):
+    """Parse common iproute2mac CLI flags for `ip` and `bridge`."""
+    opts = {
+        "af": -1,
+        "json_print": False,
+        "pretty_json": False,
+        "brief": False,
+        "color_mode": "never",
+        "oneline": False,
+    }
+
+    while argv and argv[0].startswith("-"):
+        if argv[0] == "-":
+            help_func()
+        elif argv[0] == "--":
+            argv.pop(0)
+            break
+        elif argv[0][1] == "-":
+            argv[0] = argv[0][1:]
+
+        if allow_af and argv[0] == "-6":
+            opts["af"] = 6
+            argv.pop(0)
+        elif allow_af and argv[0] == "-4":
+            opts["af"] = 4
+            argv.pop(0)
+        elif allow_batch and strict_startswith("-batch", argv[0]):
+            perror('iproute2mac: "{} -batch" is not implemented'.format(prog))
+            exit(255)
+        elif allow_brief and strict_startswith("-brief", argv[0]):
+            opts["brief"] = True
+            argv.pop(0)
+        elif strict_startswith("-oneline", argv[0]):
+            opts["oneline"] = True
+            argv.pop(0)
+        elif strict_startswith("-color", argv[0].split("=")[0]):
+            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
+            if color_mode not in ["never", "always", "auto"]:
+                perror(
+                    'Option "{}" is unknown, try "{} -help".'.format(
+                        argv[0], prog
+                    )
+                )
+                exit(255)
+            opts["color_mode"] = color_mode
+            argv.pop(0)
+        elif strict_startswith("-json", argv[0]):
+            opts["json_print"] = True
+            argv.pop(0)
+        elif strict_startswith("-pretty", argv[0]):
+            opts["pretty_json"] = True
+            argv.pop(0)
+        elif strict_startswith("-Version", argv[0]):
+            print("iproute2mac, v" + VERSION)
+            exit(0)
+        elif strict_startswith("-help", argv[0]):
+            return None
+        else:
+            perror(
+                'Option "{}" is unknown, try "{} -help".'.format(argv[0], prog)
+            )
+            exit(255)
+
+    return opts

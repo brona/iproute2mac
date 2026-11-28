@@ -126,6 +126,25 @@ Goal of this utility is to provide compatible CLI with [iproute2], supporting sa
   <summary><b>HEAD</b></summary>
 
   - Exit silently on `SIGPIPE` (e.g. `ip route | head`) to match iproute2 (https://github.com/brona/iproute2mac/pull/83, thanks [@y8gao](https://github.com/y8gao))
+  - Deduplicated `ifconfig` parsing and CLI option handling into shared `iproute2mac.py` helpers (`parse_ifconfig_links`, `parse_cli_options`)
+  - Fixed `ip route replace` failing when the route does not yet exist, and corrupting `blackhole` routes due to `argv` mutation
+  - Fixed `ip -6 route` leaving `%iface` scope suffix on IPv6 host routes
+  - Fixed `ip link set` silently ignoring unknown options; now reports an error
+  - Fixed `ip link set address factory` parsing `networksetup` output by stanza instead of fragile positional indexing
+  - Fixed `ip addr del` accepting device name without `dev` keyword (now matches Linux iproute2)
+  - Fixed `ip neigh show` crashing with uncaught exception on `ndp`/`arp` failures or unknown NDP state flags
+  - Fixed `ip neigh flush` ignoring command failures and missing space in its message
+  - Fixed `bridge` error message referencing `ip -help` instead of `bridge help` on invalid `-color` value
+  - Removed dead `bridge link set` function
+  - Fixed `ss` default output showing garbled Unix domain socket rows; `ss -x` now properly lists Unix sockets (`u_str`/`u_dgr`/`u_seq`)
+  - Fixed `ss -l` to include bound UDP sockets and `ss` to show UDP state as `UNCONN`
+  - Fixed `ss -r` to exit with "not implemented" instead of silently ignoring the flag
+  - Fixed `ss` coloring `LISTEN` state as down (red) instead of up (green)
+  - Fixed `colorize_mac` ignoring `ljust` parameter
+  - Fixed `_check_enable_color` not catching `OSError` when `tput` is absent
+  - Fixed exit codes: `ip`, `bridge` and `ss` now exit non-zero when `main()` returns failure
+  - Simplified `help_msg` decorator to validate at decoration time
+  - Added unit tests with recorded macOS command output fixtures (`test/test_iproute2mac.py`)
 
 </details>
 

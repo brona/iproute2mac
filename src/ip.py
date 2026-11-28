@@ -17,84 +17,15 @@ import signal
 import socket
 import subprocess
 import sys
-from operator import itemgetter
 
 from iproute2mac import *
 
 
 # Decode ifconfig output
 def parse_ifconfig(res, af, address):
-    links = []
-    count = 1
-
-    for r in res.split("\n"):
-        if re.match(r"^\w+:", r):
-            if count > 1:
-                links.append(link)
-            (ifname, flags, mtu, ifindex) = re.findall(
-                r"^(\w+): flags=[\da-f]+<(.*)>.+mtu (\d+).+index (\d+)", r
-            )[0]
-            flags = flags.split(",")
-            link = {
-                "ifindex": int(ifindex),
-                "ifname": ifname,
-                "flags": flags,
-                "mtu": int(mtu),
-                "operstate": "UNKNOWN",
-                "link_type": "unknown",
-            }
-            if "LOOPBACK" in flags:
-                link["link_type"] = "loopback"
-                link["address"] = "00:00:00:00:00:00"
-                link["broadcast"] = "00:00:00:00:00:00"
-            elif "POINTOPOINT" in flags:
-                link["link_type"] = "none"
-            count = count + 1
-        else:
-            if re.match(r"^\s+ether ", r):
-                link["link_type"] = "ether"
-                link["address"] = re.findall(
-                    r"(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)", r
-                )[0]
-                link["broadcast"] = "ff:ff:ff:ff:ff:ff"
-            elif address and re.match(r"^\s+inet ", r) and af != 6:
-                (local, peer, netmask) = re.findall(
-                    r"inet (\d+\.\d+\.\d+\.\d+)(?: --> (\d+\.\d+\.\d+\.\d+))? netmask (0x[\da-f]+)",
-                    r,
-                )[0]
-                addr = {
-                    "family": "inet",
-                    "local": local,
-                    "prefixlen": netmask_to_length(netmask),
-                }
-                if peer:
-                    addr["address"] = peer
-                if re.match(r"^.*broadcast", r):
-                    addr["broadcast"] = re.findall(
-                        r"broadcast (\d+\.\d+\.\d+\.\d+)", r
-                    )[0]
-                link["addr_info"] = link.get("addr_info", []) + [addr]
-            elif address and re.match(r"^\s+inet6 ", r) and af != 4:
-                (local, peer, prefixlen) = re.findall(
-                    r"inet6 ([\da-f:]*:[\da-f:]+)%*\w*(?: --> ([\da-f:]*:[\da-f:]+)%*\w*)? prefixlen (\d+)",
-                    r,
-                )[0]
-                addr = {
-                    "family": "inet6",
-                    "local": local,
-                    "prefixlen": int(prefixlen),
-                }
-                if peer:
-                    addr["address"] = peer
-                link["addr_info"] = link.get("addr_info", []) + [addr]
-            elif match := re.search(r"^\s+status: (\w+)", r):
-                status = match.group(1)
-                link["operstate"] = "UP" if status == "active" else "DOWN"
-
-    if count > 1:
-        links.append(link)
-
-    return sorted(links, key=itemgetter("ifindex"))
+    return parse_ifconfig_links(
+        res, af=af, address=address, sort_by_ifindex=True
+    )
 
 
 def link_addr_show(
@@ -308,7 +239,7 @@ def do_route(argv, af, json_print, pretty_json, color, brief, oneline):
         return do_route_del(argv, af)
     elif strict_startswith("replace", argv[0]) and len(argv) >= 3:
         argv.pop(0)
-        return do_route_del(argv, af) and do_route_add(argv, af)
+        return do_route_replace(argv, af)
     elif strict_startswith("flush", argv[0]) and len(argv) >= 1:
         argv.pop(0)
         return do_route_flush(argv, af)
@@ -346,6 +277,8 @@ def do_route_list(argv, af, json_print, pretty_json, color):
         if not r.strip():
             continue
         ra = r.split()
+        if len(ra) < 4:
+            continue
         target = ra[0]
         gw = ra[1]
         flags = ra[2]
@@ -354,7 +287,7 @@ def do_route_list(argv, af, json_print, pretty_json, color):
         if flags.find("W") != -1:
             continue
         if af == 6:
-            target = re.sub(r"%[^ ]+/", "/", target)
+            target = re.sub(r"%[^ /]+", "", target)
         else:
             target = cidr_from_netstat_dst(target)
         if flags.find("B") != -1:
@@ -435,12 +368,32 @@ def do_route_add(argv, af):
     elif argv[1] in ["dev"]:
         cmd.extend(["-interface", argv[2]])
     else:
-        do_help_route()
+        return False
 
     if is_blackhole:
         cmd.append("-blackhole")
 
     return execute_cmd(cmd)
+
+
+def do_route_replace(argv, af):
+    # Validate arguments before deleting any existing route.
+    check = list(argv)
+    if check[0] == "blackhole":
+        if len(check) != 2:
+            return False
+    elif len(check) not in (3, 5) or check[1] not in [
+        "via",
+        "nexthop",
+        "gw",
+        "dev",
+    ]:
+        return False
+
+    # Delete existing route if present (ignore failure when route is new),
+    # passing a copy so blackhole argument parsing does not mutate argv.
+    do_route_del(list(argv), af)
+    return do_route_add(argv, af)
 
 
 def do_route_del(argv, af):
@@ -519,16 +472,19 @@ def do_route_get(argv, af, json_print, pretty_json, color):
         )
     )
 
+    if "route to" not in res or "interface" not in res:
+        perror(res_text.strip())
+        return False
+
     route = {"dst": res["route to"], "dev": res["interface"]}
 
     if "gateway" in res:
         route["gateway"] = res["gateway"]
 
     try:
-        s = socket.socket(family, socket.SOCK_DGRAM)
-        s.connect((route["dst"], 7))
-        route["prefsrc"] = src_ip = s.getsockname()[0]
-        s.close()
+        with socket.socket(family, socket.SOCK_DGRAM) as s:
+            s.connect((route["dst"], 7))
+            route["prefsrc"] = s.getsockname()[0]
     except Exception:
         pass
 
@@ -594,19 +550,24 @@ def do_addr_add(argv, af):
 
     dst = ""
     if argv[1] == "peer":
+        if len(argv) < 3:
+            return False
         argv.pop(1)
         dst = argv.pop(1)
 
-    if argv[1] == "dev":
-        argv.pop(1)
-    else:
+    if len(argv) < 2 or argv[1] != "dev":
         return False
+    argv.pop(1)
+
     try:
         addr = argv[0]
         dev = argv[1]
     except IndexError:
         perror("dev not found")
         exit(1)
+    if len(argv) > 2:
+        return False
+
     cmd = [SUDO, IFCONFIG, dev]
     if ":" in addr or af == 6:
         af = 6
@@ -620,14 +581,17 @@ def do_addr_add(argv, af):
 def do_addr_del(argv, af):
     if len(argv) < 2:
         return False
-    if argv[1] == "dev":
-        argv.pop(1)
+    if argv[1] != "dev":
+        return False
+    argv.pop(1)
     try:
         addr = argv[0]
         dev = argv[1]
     except IndexError:
         perror("dev not found")
         exit(1)
+    if len(argv) > 2:
+        return False
     inet = "inet"
     if ":" in addr or af == 6:
         af = 6
@@ -672,7 +636,7 @@ def do_link_set(argv, af):
     if argv[0] == "dev":
         argv.pop(0)
 
-    dev = argv[0]
+    dev = argv.pop(0)
 
     ifconfig_dev_cmd = [SUDO, IFCONFIG, dev]
     try:
@@ -696,19 +660,40 @@ def do_link_set(argv, af):
                     )
                     if res.returncode != 0:
                         return False
-                    details = re.findall(
-                        r"^(?:Device|Ethernet Address): (.+)$",
-                        res.stdout,
-                        re.MULTILINE,
-                    )
-                    addr = details[details.index(dev) + 1]
+                    addr = None
+                    for stanza in res.stdout.split("\n\n"):
+                        dev_match = re.search(
+                            r"^Device: (.+)$", stanza, re.MULTILINE
+                        )
+                        mac_match = re.search(
+                            r"^Ethernet Address: (.+)$", stanza, re.MULTILINE
+                        )
+                        if (
+                            dev_match
+                            and dev_match.group(1) == dev
+                            and mac_match
+                        ):
+                            addr = mac_match.group(1)
+                            break
+                    if not addr or addr == "N/A":
+                        perror(
+                            "Factory MAC address not found for {}".format(dev)
+                        )
+                        return False
                 if not execute_cmd(ifconfig_dev_cmd + ["lladdr", addr]):
                     return False
             elif arg == "mtu":
                 mtu = int(next(args))
                 if not execute_cmd(ifconfig_dev_cmd + ["mtu", str(mtu)]):
                     return False
-    except Exception:
+            else:
+                perror('Option "{}" is unknown, try "ip link help".'.format(arg))
+                return False
+    except StopIteration:
+        perror("Missing argument value.")
+        return False
+    except ValueError as e:
+        perror("Invalid argument: {}".format(e))
         return False
     return True
 
@@ -761,11 +746,14 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
     neighs = []
 
     if af != 4:
-        res = subprocess.run(
-            [NDP, "-an"], capture_output=True, text=True, check=True
-        )
+        res = subprocess.run([NDP, "-an"], capture_output=True, text=True)
+        if res.returncode != 0:
+            perror((res.stderr + res.stdout).strip())
+            return False
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
+            if len(cols) < 5:
+                continue
             entry = {"dst": re.sub(r"%.+$", "", cols[0])}
             if cols[1] != "(incomplete)":
                 entry["lladdr"] = cols[1]
@@ -777,7 +765,7 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
             if cols[1] == "(incomplete)" and cols[4] != "R":
                 entry["state"] = ["INCOMPLETE"]
             else:
-                entry["state"] = [nd_ll_states[cols[4]]]
+                entry["state"] = [nd_ll_states.get(cols[4], "UNKNOWN")]
             if len(cols) >= 6 and cols[5] == "R":
                 # iproute2 outputs null in its json
                 entry["router"] = None
@@ -788,9 +776,14 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
         if dev:
             args += ["-i", dev]
 
-        res = subprocess.run(args, capture_output=True, text=True, check=True)
+        res = subprocess.run(args, capture_output=True, text=True)
+        if res.returncode != 0:
+            perror((res.stderr + res.stdout).strip())
+            return False
         for row in res.stdout.splitlines()[1:]:
             cols = row.split()
+            if len(cols) < 5:
+                continue
             entry = {"dst": cols[0]}
             if cols[1] != "(incomplete)":
                 entry["lladdr"] = cols[1]
@@ -835,21 +828,22 @@ def do_neigh_show(argv, af, json_print, pretty_json, color):
 def do_neigh_flush(argv, af):
     if len(argv) != 2:
         perror("Flush requires arguments.")
-        exit(1)
+        return False
 
     if argv[0] != "dev":
         return False
     dev = argv[1]
 
+    ok = True
     if af != 4:
         print(
-            "iproute2mac: NDP doesn't support filtering by interface,"
+            "iproute2mac: NDP doesn't support filtering by interface, "
             "flushing all IPv6 entries."
         )
-        execute_cmd([SUDO, NDP, "-cn"])
+        ok = execute_cmd([SUDO, NDP, "-cn"]) and ok
     if af != 6:
-        execute_cmd([SUDO, ARP, "-a", "-d", "-i", dev])
-    return True
+        ok = execute_cmd([SUDO, ARP, "-a", "-d", "-i", dev]) and ok
+    return ok
 
 
 # Match iproute2 commands
@@ -866,67 +860,13 @@ cmds = [
 
 @help_msg(do_help)
 def main(argv):
-    af = -1  # default / both
-    json_print = False
-    pretty_json = False
-    brief = False
-    color_mode = "never"
-    oneline = False
-
-    while argv and argv[0].startswith("-"):
-        if argv[0] == "-":
-            do_help()
-        elif argv[0] == "--":
-            argv.pop(0)
-            break
-        # Turn --opt into -opt
-        elif argv[0][1] == "-":
-            argv[0] = argv[0][1:]
-
-        # Process options
-        if argv[0] == "-6":
-            af = 6
-            argv.pop(0)
-        elif argv[0] == "-4":
-            af = 4
-            argv.pop(0)
-        elif strict_startswith("-batch", argv[0]):
-            perror('iproute2mac: "ip -batch" is not implemented')
-            exit(255)
-        elif strict_startswith("-brief", argv[0]):
-            brief = True
-            argv.pop(0)
-        elif strict_startswith("-oneline", argv[0]):
-            oneline = True
-            argv.pop(0)
-        elif strict_startswith("-color", argv[0].split("=")[0]):
-            # 'always' is default if -color is set without any value
-            color_mode = argv[0].split("=")[1] if "=" in argv[0] else "always"
-            if color_mode not in ["never", "always", "auto"]:
-                perror(
-                    'Option "{}" is unknown, try "ip -help".'.format(argv[0])
-                )
-                exit(255)
-            argv.pop(0)
-        elif strict_startswith("-json", argv[0]):
-            json_print = True
-            argv.pop(0)
-        elif strict_startswith("-pretty", argv[0]):
-            pretty_json = True
-            argv.pop(0)
-        elif strict_startswith("-Version", argv[0]):
-            print("iproute2mac, v" + VERSION)
-            exit(0)
-        elif strict_startswith("-help", argv[0]):
-            return False
-        else:
-            perror('Option "{}" is unknown, try "ip -help".'.format(argv[0]))
-            exit(255)
-
-    if not argv:
+    opts = parse_cli_options(
+        argv, "ip", do_help, allow_af=True, allow_brief=True, allow_batch=True
+    )
+    if opts is None or not argv:
         return False
 
-    color_scheme = get_color_scheme(color_mode, json_print)
+    color_scheme = get_color_scheme(opts["color_mode"], opts["json_print"])
 
     for cmd, cmd_func in cmds:
         if strict_startswith(cmd, argv[0]):
@@ -934,7 +874,13 @@ def main(argv):
             # Functions return true or terminate with exit(255)
             # See help_msg and do_help*
             return cmd_func(
-                argv, af, json_print, pretty_json, color_scheme, brief, oneline
+                argv,
+                opts["af"],
+                opts["json_print"],
+                opts["pretty_json"],
+                color_scheme,
+                opts["brief"],
+                opts["oneline"],
             )
 
     perror('Object "{}" is unknown, try "ip help".'.format(argv[0]))
@@ -944,4 +890,4 @@ def main(argv):
 if __name__ == "__main__":
     # Match iproute2: exit silently on SIGPIPE (e.g. `ip route | head`)
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    main(sys.argv[1:])
+    sys.exit(0 if main(sys.argv[1:]) else 1)
